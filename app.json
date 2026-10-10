@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Gestión de Equipo",
+    "slug": "seguimiento-partido",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tuclub.seguimientopartido"
+    },
+    "android": {
+      "package": "com.tuclub.seguimientopartido"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Gestión de Equipo",
+      "shortName": "Equipo",
+      "themeColor": "#16a34a",
+      "backgroundColor": "#0b1220"
+    }
+  }
+}
