@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import SelectorFecha from '../components/SelectorFecha';
 import SelectorHora from '../components/SelectorHora';
+import { MI_EQUIPO } from '../data/liga';
 import { crearPartidoApi, obtenerPartidoApi, actualizarPartidoApi } from '../data/apiClient';
 
 export default function DatosPartidoScreen({ navigation, route }) {
@@ -21,7 +22,7 @@ export default function DatosPartidoScreen({ navigation, route }) {
   const editando = Boolean(partidoId);
   // Si viene del calendario de la liga, ya traen los equipos, la fecha y si jugamos en casa.
   const previo = route?.params?.previo;
-  const [equipoLocal, setEquipoLocal] = useState(previo?.local || '');
+  const [equipoLocal, setEquipoLocal] = useState(previo ? (previo.local || '') : (editando ? '' : MI_EQUIPO));
   const [equipoVisitante, setEquipoVisitante] = useState(previo?.visitante || '');
   const [fecha, setFecha] = useState(previo?.fecha ? new Date(`${previo.fecha}T11:00:00`).toISOString() : new Date().toISOString());
   // En casa siempre jugamos en el mismo campo.
@@ -80,6 +81,14 @@ export default function DatosPartidoScreen({ navigation, route }) {
   // escriba el campo del rival.
   const cambiarEsLocal = (nuevoValor) => {
     setEsLocal(nuevoValor);
+    // Nuestro equipo pasa al lado que toca; el rival que hubiera escrito se pasa al otro.
+    if (nuevoValor) {
+      if (equipoVisitante === MI_EQUIPO) { setEquipoVisitante(equipoLocal === MI_EQUIPO ? '' : equipoLocal); setEquipoLocal(MI_EQUIPO); }
+      else if (!equipoLocal.trim()) setEquipoLocal(MI_EQUIPO);
+    } else {
+      if (equipoLocal === MI_EQUIPO) { setEquipoLocal(equipoVisitante === MI_EQUIPO ? '' : equipoVisitante); setEquipoVisitante(MI_EQUIPO); }
+      else if (!equipoVisitante.trim()) setEquipoVisitante(MI_EQUIPO);
+    }
     if (nuevoValor && !lugar.trim()) setLugar(CAMPO_CASA);
     if (!nuevoValor && lugar === CAMPO_CASA) setLugar('');
   };
@@ -184,6 +193,11 @@ export default function DatosPartidoScreen({ navigation, route }) {
           placeholder="Ej: CD Nuestro Equipo"
           error={errores.equipoLocal}
         />
+        {equipoLocal !== MI_EQUIPO && (
+          <TouchableOpacity style={styles.chipNuestro} onPress={() => setEquipoLocal(MI_EQUIPO)}>
+            <Text style={styles.chipNuestroTexto}>Poner {MI_EQUIPO}</Text>
+          </TouchableOpacity>
+        )}
 
         <Campo
           etiqueta="Equipo visitante"
@@ -192,6 +206,11 @@ export default function DatosPartidoScreen({ navigation, route }) {
           placeholder="Ej: Rival CF"
           error={errores.equipoVisitante}
         />
+        {equipoVisitante !== MI_EQUIPO && (
+          <TouchableOpacity style={styles.chipNuestro} onPress={() => setEquipoVisitante(MI_EQUIPO)}>
+            <Text style={styles.chipNuestroTexto}>Poner {MI_EQUIPO}</Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.etiqueta}>Fecha</Text>
         <SelectorFecha valor={fecha} onCambiar={cambiarFecha} />
@@ -306,6 +325,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
   },
+  chipNuestro: { alignSelf: 'flex-start', marginTop: -8, marginBottom: 16, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#dcfce7' },
+  chipNuestroTexto: { color: '#166534', fontWeight: '700', fontSize: 12 },
   inputError: { borderColor: '#dc2626' },
   textoError: { color: '#dc2626', fontSize: 12, marginTop: 4 },
   filaChips: { flexDirection: 'row', gap: 10, marginBottom: 18 },

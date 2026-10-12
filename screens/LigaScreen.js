@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
+import { elegirPdf } from '../data/leerPdf';
 import { useFocusEffect } from '@react-navigation/native';
 import { obtenerUsuario, obtenerLigaApi, guardarClasificacionApi, guardarNotaRivalApi } from '../data/apiClient';
 import { MI_EQUIPO, parsearClasificacion, fichaRival, partidosDe, mismoEquipo, totales } from '../data/liga';
@@ -68,7 +69,22 @@ export default function LigaScreen({ navigation }) {
     () => (liga ? fichaRival({ filas, anterior: liga.anterior?.filas || null, calendario: liga.calendario, hoy }) : null),
     [liga, filas, hoy]
   );
+  const [leyendoPdf, setLeyendoPdf] = useState(false);
+  const [errorPdf, setErrorPdf] = useState('');
   const lectura = useMemo(() => parsearClasificacion(texto), [texto]);
+
+  const subirPdf = async () => {
+    setErrorPdf('');
+    setLeyendoPdf(true);
+    try {
+      const t = await elegirPdf();
+      if (t) setTexto(t);
+    } catch (err) {
+      setErrorPdf(err.message || 'No se pudo leer el PDF');
+    } finally {
+      setLeyendoPdf(false);
+    }
+  };
 
   const guardarClasificacion = async () => {
     setGuardando(true);
@@ -142,7 +158,14 @@ export default function LigaScreen({ navigation }) {
 
         {pegando && (
           <View style={styles.tarjeta}>
-            <Text style={styles.titulo}>Pega la tabla de la federación</Text>
+            <Text style={styles.titulo}>Clasificación de la federación</Text>
+            {Platform.OS === 'web' && (
+              <TouchableOpacity style={[styles.boton, { marginTop: 10 }, leyendoPdf && { opacity: 0.5 }]} disabled={leyendoPdf} onPress={subirPdf} testID="liga-pdf">
+                <Text style={styles.botonTexto}>{leyendoPdf ? 'Leyendo el PDF…' : '📄 Subir el PDF de la federación'}</Text>
+              </TouchableOpacity>
+            )}
+            {errorPdf ? <Text style={styles.aviso}>{errorPdf}</Text> : null}
+            <Text style={[styles.mini, { marginTop: 10 }]}>O pega la tabla a mano:</Text>
             <Text style={styles.mini}>Copia la clasificación entera de la web y pégala aquí tal cual. La sanción no se tiene en cuenta salvo que ya venga en los puntos.</Text>
             <TextInput
               style={styles.areaPegar}
