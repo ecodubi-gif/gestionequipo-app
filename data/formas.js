@@ -24,13 +24,24 @@ export function ventanaVista({ tarea, dibujo, campo, modo }) {
   return { x0, y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
 }
 
+// Ventana ampliada sobre la zona de la tarea (para colocar jugadores con comodidad): la zona con un margen alrededor,
+// siempre dentro del campo. Se calcula una vez y se mantiene fija mientras se arrastra.
+export function ventanaZona({ tarea, dibujo, campo }) {
+  const c = campo || CAMPO_POR_DEFECTO;
+  const { L, W } = dimsZona(tarea);
+  const margen = Math.max(4, 0.2 * Math.max(L, W));
+  const x0 = Math.max(0, dibujo.zona.x - margen); const y0 = Math.max(0, dibujo.zona.y - margen);
+  const x1 = Math.min(c.largo, dibujo.zona.x + L + margen); const y1 = Math.min(c.ancho, dibujo.zona.y + W + margen);
+  return { x0, y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
+}
+
 /**
  * Devuelve { ancho, alto, escala, formas, ventana }. ancho y alto son los píxeles del lienzo (con el aire incluido).
  * seleccion: { tipo, i, extremo? } para marcarla (solo pizarra).
  */
-export function formasTarea({ tarea, dibujo, campo, modo = 'vista', anchoMax = 300, altoMax = 190, seleccion = null }) {
+export function formasTarea({ tarea, dibujo, campo, modo = 'vista', anchoMax = 300, altoMax = 190, seleccion = null, ventana = null }) {
   const c = campo || CAMPO_POR_DEFECTO;
-  const vent = ventanaVista({ tarea, dibujo, campo: c, modo });
+  const vent = ventana || ventanaVista({ tarea, dibujo, campo: c, modo });
   const escala = Math.min((anchoMax - PAD * 2) / vent.w, (altoMax - PAD * 2) / vent.h);
   const X = (x) => PAD + (x - vent.x0) * escala;
   const Y = (y) => PAD + (y - vent.y0) * escala;

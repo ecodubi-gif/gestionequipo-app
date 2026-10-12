@@ -66,4 +66,20 @@ t('svg escapa el texto', !sx.includes('<b>')&&sx.includes('&lt;b&gt;'));
 const ley=F.leyendaFlechas(d);
 t('leyenda: solo las flechas usadas, con su color', ley.length===5&&ley.every(l=>l.color));
 t('leyenda vacía sin flechas', F.leyendaFlechas(d0).length===0);
+// Ventana ampliada sobre la zona
+{
+  const dz=P.nuevoDibujo({tarea,campo});
+  const v=F.ventanaZona({tarea,dibujo:dz,campo});
+  t('ventanaZona: contiene la zona entera', v.x0<=dz.zona.x && v.y0<=dz.zona.y && v.x0+v.w>=dz.zona.x+40 && v.y0+v.h>=dz.zona.y+30);
+  t('ventanaZona: dentro del campo', v.x0>=0 && v.y0>=0 && v.x0+v.w<=105 && v.y0+v.h<=68);
+  t('ventanaZona: mucho más pequeña que el campo', v.w<70 && v.h<50);
+  const pegada={...dz,zona:{x:0,y:0}};
+  const v2=F.ventanaZona({tarea,dibujo:pegada,campo});
+  t('ventanaZona: zona en la esquina no sale del campo', v2.x0===0 && v2.y0===0);
+  const rz=F.formasTarea({tarea,dibujo:dz,campo,modo:'pizarra',anchoMax:358,altoMax:300,ventana:v});
+  const rc=F.formasTarea({tarea,dibujo:dz,campo,modo:'pizarra',anchoMax:358,altoMax:300});
+  t('con la ventana ampliada la escala es mayor', rz.escala>rc.escala*1.4);
+  const pz=F.pxAMetros(rz,rz.pad+(dz.zona.x-v.x0)*rz.escala,rz.pad+(dz.zona.y-v.y0)*rz.escala);
+  t('pxAMetros respeta la ventana', Math.abs(pz.x-dz.zona.x)<0.01 && Math.abs(pz.y-dz.zona.y)<0.01);
+}
 console.log(`formas: ${ok} ok, ${mal} mal`); process.exit(mal?1:0);

@@ -71,6 +71,7 @@ export default function PlantillaClubScreen() {
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [verArchivados, setVerArchivados] = useState(false);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState(formVacio());
@@ -163,7 +164,7 @@ export default function PlantillaClubScreen() {
           setModalVisible(false);
           cargar();
         } catch (err) {
-          Alert.alert('No se pudo eliminar', err.message);
+          Alert.alert('No se pudo eliminar', `${err.message}\n\nSi el jugador ya tiene partidos, entrenos o RPE guardados, no se puede borrar sin perder el historial: cámbiale el estado a "baja" y dejará de salir.`);
         } finally {
           setGuardando(false);
         }
@@ -171,6 +172,12 @@ export default function PlantillaClubScreen() {
       'Eliminar'
     );
   };
+
+  // Los jugadores dados de baja (el equipo anterior, por ejemplo) no salen salvo que se pidan; por dorsal.
+  const archivados = plantilla.filter((j) => j.estado === 'baja');
+  const visibles = (verArchivados ? plantilla : plantilla.filter((j) => j.estado !== 'baja'))
+    .slice()
+    .sort((a, b) => (a.dorsal ?? 999) - (b.dorsal ?? 999) || String(a.apellidos).localeCompare(String(b.apellidos)));
 
   if (cargando) {
     return (
@@ -183,14 +190,28 @@ export default function PlantillaClubScreen() {
   return (
     <View style={styles.contenedor}>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {usuario && !puedeGestionar ? (
+        <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', paddingTop: 10, paddingHorizontal: 16 }}>
+          Solo se consulta: la plantilla la edita el delegado.
+        </Text>
+      ) : null}
 
       <FlatList
-        data={plantilla}
+        data={visibles}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
         refreshing={cargando}
         onRefresh={cargar}
         ListEmptyComponent={<Text style={styles.vacio}>Todavía no hay jugadores en la plantilla</Text>}
+        ListFooterComponent={
+          archivados.length > 0 ? (
+            <TouchableOpacity onPress={() => setVerArchivados((v) => !v)} style={{ paddingVertical: 14 }}>
+              <Text style={{ textAlign: 'center', color: '#2563eb', fontWeight: '700', fontSize: 13 }}>
+                {verArchivados ? 'Ocultar los jugadores dados de baja' : `Ver los ${archivados.length} jugadores dados de baja`}
+              </Text>
+            </TouchableOpacity>
+          ) : null
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.tarjeta}

@@ -10,7 +10,7 @@ import {
   nuevoDibujo, normalizarDibujo, ajustarDibujo, limitarZona, centrarZona, zonaSugerida, jugadoresIniciales,
   anadirElemento, anadirFlecha, borrar, cambiarElemento, cambiarTipoFlecha, mover, buscarEn, aZona, avisosDibujo, campoDe,
 } from '../data/pizarra';
-import { formasTarea, pxAMetros } from '../data/formas';
+import { formasTarea, pxAMetros, ventanaZona } from '../data/formas';
 import { ROLES } from '../data/tareas';
 
 const GRUPOS_ELEMENTOS = ['Conos y marcas', 'Porterías', 'Material', 'Zonas y texto'];
@@ -31,6 +31,7 @@ export default function PizarraScreen({ navigation, route }) {
     const guardado = normalizarDibujo(dibujoInicial);
     return guardado || nuevoDibujo({ tarea: { ...tareaInicial, largo: tareaInicial.largo || 40, ancho: tareaInicial.ancho || 30 }, campo: CAMPO_POR_DEFECTO });
   });
+  const [enfoque, setEnfoque] = useState('zona'); // 'zona' (ampliada, para colocar con comodidad) | 'campo' (el campo entero)
   const [seleccion, setSeleccion] = useState(null);
   const [modo, setModo] = useState('mover'); // 'mover' | 'flecha'
   const [tipoFlecha, setTipoFlecha] = useState('pase');
@@ -51,17 +52,22 @@ export default function PizarraScreen({ navigation, route }) {
   useEffect(() => { cargarCampos(); }, [cargarCampos]);
 
   const altoMax = Math.max(180, Math.min(330, alturaPantalla * 0.4));
+  // Lo último que se sabe, para los gestos (que no se redibujan con cada cambio).
+  const estado = useRef({});
+  // La ventana ampliada se calcula al entrar, al cambiar de campo o de medidas, o al pulsar "Centrar vista"; no se mueve mientras se arrastra.
+  const [ventanaFija, setVentanaFija] = useState(() => ventanaZona({ tarea: { largo: dims.largo, ancho: dims.ancho }, dibujo, campo }));
+  const recentrar = useCallback(() => setVentanaFija(ventanaZona({ tarea: { largo: dims.largo, ancho: dims.ancho }, dibujo: estado.current.dibujo, campo })), [dims.largo, dims.ancho, campo]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { recentrar(); }, [recentrar, enfoque]);
   const dibujoVista = flechaEnCurso
     ? (() => {
         const a = aZona(dibujo, tarea, flechaEnCurso.a.x, flechaEnCurso.a.y); const b = aZona(dibujo, tarea, flechaEnCurso.b.x, flechaEnCurso.b.y);
         return { ...dibujo, flechas: [...dibujo.flechas, { tipo: tipoFlecha, u1: a.u, v1: a.v, u2: b.u, v2: b.v }] };
       })()
     : dibujo;
-  const res = anchoCaja > 0 ? formasTarea({ tarea, dibujo: dibujoVista, campo, modo: 'pizarra', anchoMax: anchoCaja, altoMax, seleccion }) : null;
+  const res = anchoCaja > 0 ? formasTarea({ tarea, dibujo: dibujoVista, campo, modo: 'pizarra', anchoMax: anchoCaja, altoMax, seleccion, ventana: enfoque === 'zona' ? ventanaFija : null }) : null;
   const resFinal = res;
 
-  // Lo último que se sabe, para los gestos (que no se redibujan con cada cambio).
-  const estado = useRef({});
+  // (se actualiza en cada pintado)
   estado.current = { dibujo, tarea, campo, res, modo, tipoFlecha };
   const arrastre = useRef(null);
 
@@ -89,7 +95,7 @@ export default function PizarraScreen({ navigation, route }) {
         setSeleccion(null);
         return;
       }
-      const tol = Math.min(4, Math.max(0.8, 16 / r.escala));
+      const tol = Math.min(6, Math.max(0.8, 22 / r.escala)); // ~22 px alrededor: cabe el dedo
       const hit = buscarEn(d, t, p.x, p.y, tol);
       setSeleccion(hit);
       arrastre.current = hit ? { tipo: 'mover', ref: hit, base: d, movido: false } : null;
@@ -223,6 +229,19 @@ export default function PizarraScreen({ navigation, route }) {
         <TouchableOpacity style={[styles.modo, modo === 'flecha' && styles.modoActivo]} onPress={() => { setModo('flecha'); setPanel('flechas'); setSeleccion(null); }}>
           <Text style={[styles.modoTexto, modo === 'flecha' && styles.modoTextoActivo]}>➜ Dibujar flecha</Text>
         </TouchableOpacity>
+      </View>
+      <View style={styles.filaVista}>
+        <Text style={styles.mini}>Vista:</Text>
+        {[['zona', '🔍 Zona ampliada'], ['campo', '⬜ Campo entero']].map(([k, t]) => (
+          <TouchableOpacity key={k} style={[styles.chipVista, enfoque === k && styles.chipVistaActivo]} onPress={() => setEnfoque(k)}>
+            <Text style={[styles.chipVistaTexto, enfoque === k && { color: '#fff' }]}>{t}</Text>
+          </TouchableOpacity>
+        ))}
+        {enfoque === 'zona' && (
+          <TouchableOpacity style={styles.chipVista} onPress={recentrar}>
+            <Text style={styles.chipVistaTexto}>◎ Centrar vista</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <Text style={styles.pista}>
         {modo === 'flecha'
@@ -393,6 +412,10 @@ const styles = StyleSheet.create({
   modoActivo: { backgroundColor: MORADO },
   modoTexto: { fontSize: 13, fontWeight: '700', color: '#374151' },
   modoTextoActivo: { color: '#fff' },
+  filaVista: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingTop: 8 },
+  chipVista: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#e5e7eb' },
+  chipVistaActivo: { backgroundColor: '#111827' },
+  chipVistaTexto: { fontSize: 11, fontWeight: '700', color: '#374151' },
   pista: { fontSize: 11, color: '#6b7280', paddingHorizontal: 14, paddingTop: 6 },
   aviso: { backgroundColor: '#fef3c7', color: '#92400e', borderRadius: 8, padding: 10, fontSize: 12, marginBottom: 10 },
   seleccion: { backgroundColor: '#faf5ff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e9d5ff', marginBottom: 12 },

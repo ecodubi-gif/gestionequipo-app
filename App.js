@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -23,22 +23,31 @@ import TareaEditorScreen from './screens/TareaEditorScreen';
 import PizarraScreen from './screens/PizarraScreen';
 import CamposScreen from './screens/CamposScreen';
 import LigaScreen from './screens/LigaScreen';
+import DialogoHost from './components/DialogoHost';
+import './data/dialogos';
 import SesionCompletaScreen from './screens/SesionCompletaScreen';
 import SemanaScreen from './screens/SemanaScreen';
 import EntrenamientoDetalleScreen from './screens/EntrenamientoDetalleScreen';
 import { obtenerToken } from './data/apiClient';
-import { alertaWeb } from './data/alertaWeb';
-
-// En el navegador Alert.alert no muestra nada: lo sustituimos por los cuadros del navegador.
-if (Platform.OS === 'web') {
-  Alert.alert = alertaWeb;
-}
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [comprobandoSesion, setComprobandoSesion] = useState(true);
   const [rutaInicial, setRutaInicial] = useState('Login');
+
+  // Navegador móvil: sin rebote al hacer scroll, sin zoom por doble toque y altura que descuenta la barra del navegador.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const estilo = document.createElement('style');
+    estilo.textContent = [
+      'html, body { overscroll-behavior: none; touch-action: manipulation; -webkit-text-size-adjust: 100%; }',
+      '@supports (height: 100dvh) { html, body, #root { height: 100dvh; } }',
+      '* { -webkit-tap-highlight-color: transparent; }',
+    ].join('\n');
+    document.head.appendChild(estilo);
+    return () => document.head.removeChild(estilo);
+  }, []);
 
   useEffect(() => {
     obtenerToken().then((token) => {
@@ -57,6 +66,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+    <DialogoHost />
     <NavigationContainer>
       <StatusBar style="light" />
       <Stack.Navigator initialRouteName={rutaInicial}>
