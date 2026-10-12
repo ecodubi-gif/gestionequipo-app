@@ -2,10 +2,13 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
 import { elegirPdf } from '../data/leerPdf';
 import { useFocusEffect } from '@react-navigation/native';
-import { obtenerUsuario, obtenerLigaApi, guardarClasificacionApi, guardarNotaRivalApi } from '../data/apiClient';
+import { obtenerUsuario, obtenerLigaApi, guardarClasificacionApi, guardarNotaRivalApi, obtenerScoutingApi } from '../data/apiClient';
+import Formacion from '../components/Formacion';
+import { resumenInforme, estaVacio, jugadoresPorTipo, TIPOS_JUGADOR, progreso } from '../data/scouting';
 import { MI_EQUIPO, parsearClasificacion, fichaRival, partidosDe, mismoEquipo, totales } from '../data/liga';
 
 const ROLES_EDITAR = ['entrenador', 'segundo_entrenador'];
+const ROLES_VER_SCOUTING = ['entrenador', 'segundo_entrenador', 'preparador_fisico'];
 const COLOR_MARCA = { G: '#16a34a', E: '#9ca3af', P: '#dc2626' };
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
@@ -47,6 +50,7 @@ export default function LigaScreen({ navigation }) {
   const [guardando, setGuardando] = useState(false);
   const [nota, setNota] = useState(null); // null = sin cambios
   const [guardandoNota, setGuardandoNota] = useState(false);
+  const [scouting, setScouting] = useState({});
 
   const cargar = useCallback(async () => {
     setError('');
@@ -54,6 +58,10 @@ export default function LigaScreen({ navigation }) {
       const [u, l] = await Promise.all([obtenerUsuario(), obtenerLigaApi()]);
       setUsuario(u);
       setLiga(l);
+      // El informe de scouting solo lo ve el cuerpo técnico; si falla, la liga se ve igual.
+      if (u && ROLES_VER_SCOUTING.includes(u.role)) {
+        try { setScouting(await obtenerScoutingApi()); } catch (e) { setScouting({}); }
+      } else setScouting({});
     } catch (err) {
       setError(err.message || 'No se pudo cargar la liga');
     } finally {
@@ -250,6 +258,61 @@ export default function LigaScreen({ navigation }) {
                   <Text style={styles.vacio}>Todavía no tengo la clasificación de este equipo. Actualiza la clasificación.</Text>
                 )}
               </View>
+
+              {usuario && ROLES_VER_SCOUTING.includes(usuario.role) && (() => {
+                const inf = scouting[proximo.rival];
+                const hay = inf && !estaVacio(inf);
+                const p = progreso(inf);
+                return (
+                  <View style={styles.tarjeta} testID="scouting-card">
+                    <Text style={styles.titulo}>🔎 Scouting de {corto(proximo.rival)}</Text>
+                    {!hay && <Text style={[styles.mini, { marginTop: 6 }]}>Todavía no hay informe de este rival.</Text>}
+                    {hay && (
+                      <View style={{ marginTop: 8, gap: 10 }}>
+                        <Text style={styles.mini}>
+                          {p.hechos} de {p.total} campos{inf.editado_por ? ` · ${inf.editado_por}` : ''}{inf.actualizado ? ` · ${fechaLarga(inf.actualizado.slice(0, 10))}` : ''}
+                        </Text>
+                        {resumenInforme(inf).map((s) => (
+                          <View key={s.id}>
+                            <Text style={styles.etiqueta}>{s.icono} {s.titulo}</Text>
+                            {s.id === 'sistema' && s.lineas.some((l) => l.formacion) && (
+                              <View style={{ flexDirection: 'row', gap: 14, flexWrap: 'wrap', marginVertical: 8 }}>
+                                {[['dibujo', 'Inicio'], ['dibujo_ataque', 'Con balón'], ['dibujo_defensa', 'Sin balón']].map(([id, n]) => {
+                                  const l = s.lineas.find((x) => x.id === id);
+                                  return l ? <Formacion key={id} texto={l.valor} etiqueta={n} ancho={74} /> : null;
+                                })}
+                              </View>
+                            )}
+                            {s.lineas.map((l, i) => (
+                              <View key={l.id}>
+                                {l.grupo && (i === 0 || s.lineas[i - 1].grupo !== l.grupo) ? <Text style={[styles.mini, { fontWeight: '800', marginTop: 6, textTransform: 'uppercase' }]}>{l.grupo}</Text> : null}
+                                <Text style={styles.texto}><Text style={{ fontWeight: '700' }}>{l.etiqueta}: </Text>{l.valor}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        ))}
+                        {TIPOS_JUGADOR.map((tp) => {
+                          const js = jugadoresPorTipo(inf, tp.id);
+                          if (js.length === 0) return null;
+                          return (
+                            <View key={tp.id}>
+                              <Text style={[styles.etiqueta, { color: tp.color }]}>{tp.etiqueta}</Text>
+                              {js.map((j, i) => (
+                                <Text key={i} style={styles.texto}>{j.dorsal ? `#${j.dorsal} ` : ''}{j.nombre}{j.nota ? ` · ${j.nota}` : ''}</Text>
+                              ))}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                    {puedeEditar && (
+                      <TouchableOpacity style={[styles.boton, { backgroundColor: '#7c3aed' }]} onPress={() => navigation.navigate('Scouting', { equipo: proximo.rival, informe: inf || null })} testID="scouting-editar">
+                        <Text style={styles.botonTexto}>{hay ? '✏️ Editar el informe' : '📝 Rellenar el informe'}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })()}
 
               {notasVisibles && (
                 <View style={styles.tarjeta}>

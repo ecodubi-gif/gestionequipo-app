@@ -357,6 +357,17 @@ export async function guardarClasificacionApi(filas, fecha) {
   return data;
 }
 
+// Informes de scouting de los rivales: { 'NOMBRE DEL EQUIPO': { datos, jugadores, editado_por, actualizado } }
+export async function obtenerScoutingApi() {
+  const { data } = await peticion('GET', '/liga/scouting');
+  return data || {};
+}
+
+export async function guardarScoutingApi(equipo, informe) {
+  const { data } = await peticion('PUT', '/liga/scouting', { equipo, datos: informe.datos, jugadores: informe.jugadores });
+  return data;
+}
+
 export async function guardarNotaRivalApi(equipo, texto) {
   const { data } = await peticion('PUT', '/liga/notas', { equipo, texto });
   return data;
