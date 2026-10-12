@@ -241,6 +241,10 @@ export async function guardarTipoSesionApi(id, tipo) {
   return data;
 }
 
+export async function eliminarEntrenamientoApi(id) {
+  return peticion('POST', `/entrenamientos/${id}/eliminar`);
+}
+
 // --- Carga de entrenamiento (RPE) ---
 // Datos de n semanas (de lunes a domingo) que terminan en la semana de 'lunes' (AAAA-MM-DD)
 export async function obtenerSemanasCargaApi(lunes, semanas = 6) {

@@ -12,7 +12,7 @@ export const VERSION = 1;
 export const LIMITES = { jugadores: 64, elementos: 60, flechas: 40, texto: 40 };
 export const RANGO_UV = [-0.6, 1.6]; // lo más lejos de la zona (en su propio tamaño) que se puede dejar algo
 
-export const CAMPO_POR_DEFECTO = { id: null, nombre: 'Campo de fútbol 11', largo: CAMPO_MAXIMO.largo, ancho: CAMPO_MAXIMO.ancho };
+export const CAMPO_POR_DEFECTO = { id: null, nombre: 'Estadio Juan Benjumea', largo: CAMPO_MAXIMO.largo, ancho: CAMPO_MAXIMO.ancho };
 export const LIMITES_CAMPO = { largo: [20, 130], ancho: [15, 100] };
 
 // ---------- Colores: dos equipos y comodines; las flechas tienen un significado fijo ----------

@@ -28,6 +28,9 @@ export default function DatosPartidoScreen({ navigation, route }) {
   const CAMPO_CASA = 'Estadio Juan Benjumea';
   const [lugar, setLugar] = useState(previo && !previo.esLocal ? '' : CAMPO_CASA);
   const [esLocal, setEsLocal] = useState(previo ? previo.esLocal : true);
+  // Medidas del campo del rival (solo fuera). Se guardan al final del lugar: "Campo X · 100 × 62 m".
+  const [largoCampo, setLargoCampo] = useState('');
+  const [anchoCampo, setAnchoCampo] = useState('');
   const [lugarCitacion, setLugarCitacion] = useState('');
   const [horaCitacion, setHoraCitacion] = useState(new Date().toISOString());
   const [errores, setErrores] = useState({});
@@ -46,7 +49,10 @@ export default function DatosPartidoScreen({ navigation, route }) {
         setEquipoLocal(p.equipo_local || '');
         setEquipoVisitante(p.equipo_visitante || '');
         setFecha(new Date(p.fecha).toISOString());
-        setLugar(p.lugar || '');
+        const m = String(p.lugar || '').match(/^(.*?)\s*·\s*(\d{2,3})\s*[×x]\s*(\d{2,3})\s*m$/);
+        setLugar(m ? m[1] : (p.lugar || ''));
+        setLargoCampo(m ? m[2] : '');
+        setAnchoCampo(m ? m[3] : '');
         setEsLocal(Boolean(p.es_local));
         setLugarCitacion(p.lugar_citacion || '');
         if (p.hora_citacion) {
@@ -95,6 +101,10 @@ export default function DatosPartidoScreen({ navigation, route }) {
     if (!equipoLocal.trim()) nuevosErrores.equipoLocal = 'Falta el equipo local';
     if (!equipoVisitante.trim()) nuevosErrores.equipoVisitante = 'Falta el equipo visitante';
     if (!lugar.trim()) nuevosErrores.lugar = 'Indica el campo';
+    if (!esLocal && (largoCampo || anchoCampo)) {
+      const l = Number(largoCampo); const a = Number(anchoCampo);
+      if (!(l >= 20 && l <= 130 && a >= 15 && a <= 100)) nuevosErrores.medidas = 'Medidas no válidas (largo 20-130 m, ancho 15-100 m)';
+    }
     setErrores(nuevosErrores);
     return Object.keys(nuevosErrores).length === 0;
   };
@@ -113,7 +123,7 @@ export default function DatosPartidoScreen({ navigation, route }) {
         equipo_local: equipoLocal.trim(),
         equipo_visitante: equipoVisitante.trim(),
         fecha,
-        lugar: lugar.trim(),
+        lugar: lugar.trim() + (!esLocal && largoCampo && anchoCampo ? ` · ${largoCampo} × ${anchoCampo} m` : ''),
         es_local: esLocal,
         lugar_citacion: esLocal ? null : (lugarCitacion.trim() || null),
         hora_citacion: horaCitacionTexto,
@@ -196,6 +206,33 @@ export default function DatosPartidoScreen({ navigation, route }) {
           placeholder="Ej: Campo Municipal"
           error={errores.lugar}
         />
+
+        {!esLocal && (
+          <View style={styles.grupo}>
+            <Text style={styles.etiqueta}>Dimensiones del campo (opcional)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }, errores.medidas && styles.inputError]}
+                value={largoCampo}
+                onChangeText={(t) => setLargoCampo(t.replace(/\D/g, '').slice(0, 3))}
+                keyboardType="number-pad"
+                placeholder="Largo"
+                placeholderTextColor="#9aa0a6"
+              />
+              <Text style={{ color: '#6b7280', fontWeight: '700' }}>×</Text>
+              <TextInput
+                style={[styles.input, { flex: 1 }, errores.medidas && styles.inputError]}
+                value={anchoCampo}
+                onChangeText={(t) => setAnchoCampo(t.replace(/\D/g, '').slice(0, 3))}
+                keyboardType="number-pad"
+                placeholder="Ancho"
+                placeholderTextColor="#9aa0a6"
+              />
+              <Text style={{ color: '#6b7280' }}>m</Text>
+            </View>
+            {errores.medidas ? <Text style={styles.textoError}>{errores.medidas}</Text> : null}
+          </View>
+        )}
 
         <Text style={styles.etiqueta}>¿Jugáis en casa o fuera?</Text>
         <View style={styles.filaChips}>

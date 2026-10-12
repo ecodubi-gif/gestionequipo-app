@@ -16,7 +16,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import SelectorFecha from '../components/SelectorFecha';
 import SelectorHora from '../components/SelectorHora';
-import { listarEntrenamientosApi, crearEntrenamientoApi, obtenerUsuario } from '../data/apiClient';
+import { listarEntrenamientosApi, crearEntrenamientoApi, eliminarEntrenamientoApi, obtenerUsuario } from '../data/apiClient';
+import { confirmar } from '../data/confirmar';
 import { formatearFechaCorta } from '../data/fecha';
 
 // Solo entrenador y segundo entrenador crean la sesión (fecha/hora/campo).
@@ -24,6 +25,8 @@ import { formatearFechaCorta } from '../data/fecha';
 // desde la pantalla de asistencia, en la sesión que haya creado el cuerpo técnico.
 const ROLES_GESTION = ['entrenador', 'segundo_entrenador'];
 const ROLES_MATERIAL = ['entrenador', 'segundo_entrenador'];
+
+const CAMPO_CASA = 'Estadio Juan Benjumea';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -37,6 +40,7 @@ export default function EntrenamientosListScreen({ navigation }) {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [fechaHora, setFechaHora] = useState(new Date().toISOString());
+  const [superficie, setSuperficie] = useState('césped natural'); // 'césped natural' | 'césped artificial' | 'otro'
   const [nombreCampo, setNombreCampo] = useState('');
   const [tipoCampo, setTipoCampo] = useState('Campo entero');
   const [material, setMaterial] = useState('');
@@ -64,8 +68,24 @@ export default function EntrenamientosListScreen({ navigation }) {
   const puedeCrear = usuario && ROLES_GESTION.includes(usuario.role);
   const puedeAnadirMaterial = usuario && ROLES_MATERIAL.includes(usuario.role);
 
+  const borrar = (item) => {
+    confirmar(
+      'Borrar entrenamiento',
+      `¿Borrar el entrenamiento del ${formatearFechaCorta(item.fecha)} (${item.lugar})? Se borran también sus tareas, asistencias y cargas. No se puede deshacer.`,
+      async () => {
+        try {
+          await eliminarEntrenamientoApi(item.id);
+          setEntrenamientos((prev) => prev.filter((e) => e.id !== item.id));
+        } catch (err) {
+          setError(err.message || 'No se pudo borrar el entrenamiento');
+        }
+      }
+    );
+  };
+
   const abrirModal = () => {
     setFechaHora(new Date().toISOString());
+    setSuperficie('césped natural');
     setNombreCampo('');
     setTipoCampo('Campo entero');
     setMaterial('');
@@ -85,7 +105,7 @@ export default function EntrenamientosListScreen({ navigation }) {
   };
 
   const crear = async () => {
-    if (!nombreCampo.trim()) {
+    if (superficie === 'otro' && !nombreCampo.trim()) {
       Alert.alert('Falta el nombre del campo', 'Indica dónde vais a entrenar');
       return;
     }
@@ -95,7 +115,7 @@ export default function EntrenamientosListScreen({ navigation }) {
       const entrenamiento = await crearEntrenamientoApi({
         fecha: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
         hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-        lugar: `${nombreCampo.trim()} · ${tipoCampo}`,
+        lugar: `${superficie === 'otro' ? nombreCampo.trim() : `${CAMPO_CASA} · ${superficie}`} · ${tipoCampo}`,
         material: puedeAnadirMaterial ? material.trim() || null : null,
       });
       setModalVisible(false);
@@ -134,6 +154,11 @@ export default function EntrenamientosListScreen({ navigation }) {
             <Text style={styles.fecha}>{formatearFechaCorta(item.fecha)} · {item.hora?.slice(0, 5)}</Text>
             <Text style={styles.lugar}>🏟️ {item.lugar}</Text>
             {item.material ? <Text style={styles.material}>🎒 {item.material}</Text> : null}
+            {puedeCrear && (
+              <TouchableOpacity style={styles.botonBorrar} onPress={() => borrar(item)}>
+                <Text style={styles.botonBorrarTexto}>🗑 Borrar</Text>
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
         )}
       />
@@ -157,13 +182,24 @@ export default function EntrenamientosListScreen({ navigation }) {
             <SelectorHora valor={fechaHora} onCambiar={cambiarHora} />
 
             <Text style={styles.etiqueta}>Campo</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ej: Campo Municipal, Polideportivo..."
-              placeholderTextColor="#9ca3af"
-              value={nombreCampo}
-              onChangeText={setNombreCampo}
-            />
+            <View style={styles.filaChips}>
+              {[['césped natural', '🌱 Césped natural'], ['césped artificial', '🟩 Césped artificial'], ['otro', 'Otro lugar']].map(([k, t]) => (
+                <TouchableOpacity key={k} style={[styles.chip, superficie === k && styles.chipActivo]} onPress={() => setSuperficie(k)}>
+                  <Text style={[styles.chipTexto, superficie === k && styles.chipTextoActivo]}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {superficie === 'otro' ? (
+              <TextInput
+                style={[styles.input, { marginTop: 10 }]}
+                placeholder="Ej: Campo Municipal, Polideportivo..."
+                placeholderTextColor="#9ca3af"
+                value={nombreCampo}
+                onChangeText={setNombreCampo}
+              />
+            ) : (
+              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>{CAMPO_CASA}</Text>
+            )}
             <View style={[styles.filaChips, { marginTop: 10 }]}>
               <TouchableOpacity style={[styles.chip, tipoCampo === 'Campo entero' && styles.chipActivo]} onPress={() => setTipoCampo('Campo entero')}>
                 <Text style={[styles.chipTexto, tipoCampo === 'Campo entero' && styles.chipTextoActivo]}>Campo entero</Text>
@@ -214,6 +250,8 @@ const styles = StyleSheet.create({
   tarjeta: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10 },
   fecha: { fontSize: 15, fontWeight: '700', color: '#111827', textTransform: 'capitalize' },
   lugar: { fontSize: 13, color: '#6b7280', marginTop: 4 },
+  botonBorrar: { alignSelf: 'flex-end', marginTop: 8, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#fef2f2' },
+  botonBorrarTexto: { color: '#dc2626', fontWeight: '700', fontSize: 12 },
   material: { fontSize: 12, color: '#2563eb', marginTop: 4 },
   botonNuevo: { position: 'absolute', bottom: 24, right: 20, left: 20, backgroundColor: '#16a34a', borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   botonNuevoTexto: { color: '#fff', fontWeight: '700', fontSize: 15 },
