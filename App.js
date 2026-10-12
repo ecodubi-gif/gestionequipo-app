@@ -24,6 +24,7 @@ import PizarraScreen from './screens/PizarraScreen';
 import CamposScreen from './screens/CamposScreen';
 import LigaScreen from './screens/LigaScreen';
 import ScoutingScreen from './screens/ScoutingScreen';
+import ScoutingHistorialScreen from './screens/ScoutingHistorialScreen';
 import DialogoHost from './components/DialogoHost';
 import './data/dialogos';
 import SesionCompletaScreen from './screens/SesionCompletaScreen';
@@ -88,6 +89,7 @@ export default function App() {
         <Stack.Screen name="Campos" component={CamposScreen} options={{ title: 'Campos de entrenamiento' }} />
         <Stack.Screen name="Liga" component={LigaScreen} options={{ title: 'Liga' }} />
         <Stack.Screen name="Scouting" component={ScoutingScreen} options={{ title: 'Informe del rival' }} />
+        <Stack.Screen name="ScoutingHistorial" component={ScoutingHistorialScreen} options={{ title: 'Historial del informe' }} />
         <Stack.Screen name="Semana" component={SemanaScreen} options={{ title: 'Semana' }} />
         <Stack.Screen name="SesionCompleta" component={SesionCompletaScreen} options={{ title: 'Sesión completa' }} />
         <Stack.Screen

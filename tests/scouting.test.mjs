@@ -1,4 +1,4 @@
-import { lineasFormacion, puntosFormacion, SECCIONES, limpiarInforme, estaVacio, resumenInforme, progreso, jugadoresPorTipo, informeVacio } from './scouting.mjs';
+import { cambiosEntre, lineasFormacion, puntosFormacion, SECCIONES, limpiarInforme, estaVacio, resumenInforme, progreso, jugadoresPorTipo, informeVacio } from './scouting.mjs';
 let ok = 0, mal = 0;
 const t = (n, c) => { if (c) ok++; else { mal++; console.log('FALLA', n); } };
 
@@ -28,4 +28,10 @@ t('puntos: 11 jugadores dentro del campo', pf.length === 11 && pf.every((p) => p
 t('puntos: portero abajo y delanteros arriba', pf[0].y > pf[1].y && pf[10].y < pf[1].y);
 t('puntos: sin formación', puntosFormacion(null).length === 0);
 t('un campo con formacion', SECCIONES[0].campos.filter((c) => c.formacion).length === 3);
+t('campos nuevos de texto', ids.includes('of_combinativa') && ids.includes('of_directo') && ids.includes('of_zonas_texto'));
+const c0 = cambiosEntre(null, { datos: { dibujo: '1-4-4-2', tr_ref: 'x' }, jugadores: [{ nombre: 'A', tipo: 'clave' }] });
+t('cambios: primera versión', c0.length === 3 && c0.every((c) => c.tipo === 'nuevo'));
+const c1 = cambiosEntre({ datos: { dibujo: '1-4-4-2', tr_ref: 'x' }, jugadores: [{ nombre: 'A', tipo: 'clave' }] }, { datos: { dibujo: '1-4-3-3', met_abp: 'y' }, jugadores: [{ nombre: 'A', tipo: 'clave' }, { nombre: 'B', tipo: 'debil' }] });
+t('cambios: cambiado, nuevo y quitado', c1.some((c) => c.etiqueta === 'Dibujo base' && c.tipo === 'cambiado') && c1.some((c) => c.tipo === 'quitado' && c.etiqueta === 'Quién inicia la contra') && c1.some((c) => c.tipo === 'nuevo' && /jugador/.test(c.etiqueta)));
+t('cambios: nada', cambiosEntre({ datos: { dibujo: 'a' } }, { datos: { dibujo: ' a ' } }).length === 0);
 console.log(`scouting: ${ok} ok, ${mal} mal`);

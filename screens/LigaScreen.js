@@ -305,6 +305,11 @@ export default function LigaScreen({ navigation }) {
                         })}
                       </View>
                     )}
+                    {hay && (
+                      <TouchableOpacity onPress={() => navigation.navigate('ScoutingHistorial', { equipo: proximo.rival })} style={{ alignSelf: 'center', marginTop: 10 }} testID="scouting-historial">
+                        <Text style={styles.enlace}>🕘 Ver el historial de cambios</Text>
+                      </TouchableOpacity>
+                    )}
                     {puedeEditar && (
                       <TouchableOpacity style={[styles.boton, { backgroundColor: '#7c3aed' }]} onPress={() => navigation.navigate('Scouting', { equipo: proximo.rival, informe: inf || null })} testID="scouting-editar">
                         <Text style={styles.botonTexto}>{hay ? '✏️ Editar el informe' : '📝 Rellenar el informe'}</Text>
@@ -316,7 +321,7 @@ export default function LigaScreen({ navigation }) {
 
               {notasVisibles && (
                 <View style={styles.tarjeta}>
-                  <Text style={styles.titulo}>Mis notas de {corto(proximo.rival)}</Text>
+                  <Text style={styles.titulo}>Aspectos clave de {corto(proximo.rival)}</Text>
                   <TextInput
                     style={styles.areaNota}
                     multiline

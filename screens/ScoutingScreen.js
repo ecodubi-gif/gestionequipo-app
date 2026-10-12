@@ -142,6 +142,11 @@ export default function ScoutingScreen({ navigation, route }) {
         </View>
 
         {inicial && (
+          <TouchableOpacity onPress={() => navigation.navigate('ScoutingHistorial', { equipo })} style={{ alignSelf: 'center', marginTop: 16 }}>
+            <Text style={{ color: MORADO, fontSize: 12, fontWeight: '700' }}>🕘 Ver el historial de cambios</Text>
+          </TouchableOpacity>
+        )}
+        {inicial && (
           <TouchableOpacity onPress={borrarTodo} style={{ alignSelf: 'center', marginTop: 16 }}>
             <Text style={{ color: '#dc2626', fontSize: 12, fontWeight: '700' }}>Borrar todo el informe</Text>
           </TouchableOpacity>

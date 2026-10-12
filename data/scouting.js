@@ -11,7 +11,10 @@ export const SECCIONES = [
       { id: 'dibujo_defensa', etiqueta: 'Cómo cambia sin balón', tipo: 'texto', formacion: true, ayuda: 'Ej: 1-4-5-1 con los extremos replegados' },
       { id: 'dibujo_cambios', etiqueta: 'Otros cambios según la fase o el marcador', tipo: 'largo', ayuda: 'Cambios de sistema cuando ganan, pierden o juegan con uno menos' },
       { id: 'of_inicio', grupo: 'Fase ofensiva', etiqueta: 'Cómo inician el juego', tipo: 'opciones', opciones: ['Salida combinativa', 'Juego directo', 'Mixto'] },
+      { id: 'of_combinativa', etiqueta: 'Salida combinativa: cómo la hacen', tipo: 'largo', ayuda: 'Quién inicia, apoyos del portero, pivote que baja, laterales altos…' },
+      { id: 'of_directo', etiqueta: 'Juego directo: cómo lo hacen', tipo: 'largo', ayuda: 'Referente arriba, saque largo del portero, segundas jugadas…' },
       { id: 'of_zonas', etiqueta: 'Zonas de progresión', tipo: 'opciones', opciones: ['Por dentro', 'Por bandas', 'Mixto'] },
+      { id: 'of_zonas_texto', etiqueta: 'Zonas de progresión: detalle', tipo: 'largo', ayuda: 'Por qué carril llegan, si centran o buscan dentro, qué banda prefieren…' },
       { id: 'of_remate', etiqueta: 'Ocupación del área y llegada de segunda línea', tipo: 'largo' },
       { id: 'def_altura', grupo: 'Fase defensiva', etiqueta: 'Altura del bloque defensivo', tipo: 'opciones', opciones: ['Presión alta', 'Bloque medio', 'Bloque bajo'] },
       { id: 'def_tipo', etiqueta: 'Tipo de defensa', tipo: 'opciones', opciones: ['Zona', 'Individual', 'Mixta'] },
@@ -142,4 +145,26 @@ export function puntosFormacion(lineas) {
     for (let k = 0; k < n; k++) pts.push({ x: (k + 1) / (n + 1), y });
   });
   return pts;
+}
+
+// Qué ha cambiado entre dos versiones del informe (la anterior puede ser null: es la primera).
+// Devuelve [{ etiqueta, tipo: 'nuevo' | 'cambiado' | 'quitado' }], con los campos y la lista de jugadores.
+export function cambiosEntre(anterior, nuevo) {
+  const a = limpiarInforme(anterior);
+  const n = limpiarInforme(nuevo);
+  const cambios = [];
+  for (const sec of SECCIONES) {
+    for (const c of sec.campos) {
+      const antes = a.datos[c.id]; const ahora = n.datos[c.id];
+      if (antes === ahora) continue;
+      cambios.push({ etiqueta: c.etiqueta, tipo: !antes ? 'nuevo' : !ahora ? 'quitado' : 'cambiado' });
+    }
+  }
+  const firma = (js) => js.map((j) => `${j.nombre}|${j.dorsal}|${j.tipo}|${j.nota}`);
+  const fa = new Set(firma(a.jugadores)); const fn = new Set(firma(n.jugadores));
+  const altas = firma(n.jugadores).filter((x) => !fa.has(x)).length;
+  const bajas = firma(a.jugadores).filter((x) => !fn.has(x)).length;
+  if (altas) cambios.push({ etiqueta: altas === 1 ? '1 jugador añadido o cambiado' : `${altas} jugadores añadidos o cambiados`, tipo: 'nuevo' });
+  if (bajas) cambios.push({ etiqueta: bajas === 1 ? '1 jugador quitado o cambiado' : `${bajas} jugadores quitados o cambiados`, tipo: 'quitado' });
+  return cambios;
 }

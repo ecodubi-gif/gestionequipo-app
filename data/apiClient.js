@@ -363,6 +363,11 @@ export async function obtenerScoutingApi() {
   return data || {};
 }
 
+export async function obtenerHistorialScoutingApi(equipo) {
+  const { data } = await peticion('GET', `/liga/scouting/historial?equipo=${encodeURIComponent(equipo)}`);
+  return data || [];
+}
+
 export async function guardarScoutingApi(equipo, informe) {
   const { data } = await peticion('PUT', '/liga/scouting', { equipo, datos: informe.datos, jugadores: informe.jugadores });
   return data;
