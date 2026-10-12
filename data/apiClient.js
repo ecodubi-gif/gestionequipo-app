@@ -320,3 +320,23 @@ export async function actualizarBibliotecaApi(id, datos) {
 export async function eliminarBibliotecaApi(id) {
   return peticion('DELETE', `/biblioteca-tareas/${id}`);
 }
+
+// --- Campos de entrenamiento (medidas reales) ---
+export async function listarCamposApi() {
+  const { data } = await peticion('GET', '/campos-entrenamiento');
+  return data;
+}
+
+export async function crearCampoApi(datos) {
+  const { data } = await peticion('POST', '/campos-entrenamiento', datos);
+  return data;
+}
+
+export async function actualizarCampoApi(id, datos) {
+  const { data } = await peticion('PUT', `/campos-entrenamiento/${id}`, datos);
+  return data;
+}
+
+export async function eliminarCampoApi(id) {
+  return peticion('DELETE', `/campos-entrenamiento/${id}`);
+}

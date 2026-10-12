@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { filtrarBiblioteca, tareaDesdeBiblioteca, bibliotecaDesdeTarea, buscarPorNombre } from './biblioteca.mjs';
 let ok=0,mal=0; const t=(n,c)=>{ if(c)ok++; else {mal++;console.log('FALLA',n)} };
-const S=JSON.parse(fs.readFileSync('../gen/biblioteca_semilla.json','utf8'));
+const S=JSON.parse(fs.readFileSync('./biblioteca_semilla.json','utf8'));
 t('13 tareas iniciales', S.length===13);
 t('nombres únicos', new Set(S.map(x=>x.nombre)).size===S.length);
 t('sin filtro devuelve todas', filtrarBiblioteca(S).length===13);

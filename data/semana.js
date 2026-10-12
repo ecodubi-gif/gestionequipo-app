@@ -14,7 +14,7 @@ export const CAMPOS_PERFIL = [
 
 const CAMPOS_TAREA = [
   'bloque', 'nombre', 'objetivo', 'referencia', 'n_ataque', 'n_defensa', 'n_comodines', 'n_porteros',
-  'largo', 'ancho', 'series', 'pausa_seg', 'descripcion',
+  'largo', 'ancho', 'series', 'pausa_seg', 'descripcion', 'dibujo',
 ];
 
 // Lo que se manda al servidor para crear una tarea a partir de una de la plantilla (sin jugadores:

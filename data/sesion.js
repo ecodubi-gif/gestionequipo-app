@@ -3,6 +3,8 @@
 import { BLOQUES_ENTRENADOR, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
 import { OBJETIVOS, REFERENCIAS, ROLES, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from './tareas';
 import { formatearFechaCorta } from './fecha';
+import { dibujoDeTarea } from './pizarra';
+import { formasTarea, svgDeFormas, leyendaFlechas } from './formas';
 
 export const MIN_PREVENTIVO = 15;
 export const MIN_MOVILIDAD = 5;
@@ -76,7 +78,20 @@ const saltos = (v) => esc(v).replace(/\n/g, '<br/>');
 
 const nombreJugador = (j) => (j ? `${j.dorsal ? `#${j.dorsal} ` : ''}${j.nombre} ${j.apellidos || ''}`.trim() : 'Jugador no encontrado');
 
-export function htmlSesion({ entrenamiento, tipo, sesion, jugadoresPorId, trabajoAparte, asistentes, lugar }) {
+// Dibujo de la tarea para la hoja imprimible: el campo con la zona, los jugadores, el material y las flechas, con su leyenda.
+function dibujoHtml(t, campos) {
+  const d = dibujoDeTarea(t, campos);
+  if (!d) return '';
+  const res = formasTarea({ tarea: t, dibujo: d.dibujo, campo: d.campo, modo: 'vista', anchoMax: 300, altoMax: 190 });
+  const roles = ['ataque', 'defensa', 'comodin', 'portero'].filter((r) => d.dibujo.jugadores.some((j) => j.rol === r));
+  const col = { ataque: '#dc2626', defensa: '#2563eb', comodin: '#eab308', portero: '#111827' };
+  const nom = { ataque: 'Ataque', defensa: 'Defensa', comodin: 'Comodín', portero: 'Portero' };
+  const ley = roles.map((r) => `<span style="display:inline-block;width:9px;height:9px;border-radius:5px;background:${col[r]};margin-right:3px"></span>${nom[r]}`)
+    .concat(leyendaFlechas(d.dibujo).map((f) => `<span style="display:inline-block;width:18px;border-top:2px ${f.discontinua ? 'dashed' : 'solid'} ${f.color};margin-right:3px;vertical-align:middle"></span>${esc(f.etiqueta)}`));
+  return `${svgDeFormas(res)}<div class="leyenda" style="font-size:10px;color:#4b5563">${ley.join(' &nbsp; ')}</div>`;
+}
+
+export function htmlSesion({ entrenamiento, tipo, sesion, jugadoresPorId, trabajoAparte, asistentes, lugar, campos = [] }) {
   const hora = (entrenamiento.hora || '').slice(0, 5);
   const fin = hora ? sumarHora(hora, sesion.total) : null;
 
@@ -89,6 +104,7 @@ export function htmlSesion({ entrenamiento, tipo, sesion, jugadoresPorId, trabaj
         return `<div class="tarea">
           <div class="tarea-cab"><b>${esc(t.nombre)}</b><span>${esc(t.series)} × ${esc(formatoDuracion(segundosDe(t)))}${t.pausa_seg ? ` · pausa ${esc(t.pausa_seg)} s` : ''} = ${esc(t.minutos)}'</span></div>
           <div class="tarea-datos">${esc(formatoTarea(t))} · ${esc(textoDimensiones(t))}${t.objetivo && OBJETIVOS[t.objetivo] ? ` · ${esc(OBJETIVOS[t.objetivo].corto)}` : ''}${REFERENCIAS[t.referencia] ? ` · ${esc(REFERENCIAS[t.referencia].etiqueta)}` : ''}</div>
+          ${dibujoHtml(t, campos)}
           ${t.descripcion ? `<p>${saltos(t.descripcion)}</p>` : ''}
           ${porRol ? `<div class="roles">${porRol}</div>` : ''}
         </div>`;

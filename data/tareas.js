@@ -90,7 +90,7 @@ export const jugadoresDeCampo = (c) => c.ataque + c.defensa + c.comodin;
 
 const limitar = (v, min, max) => Math.min(max, Math.max(min, v));
 
-export function calcularDimensiones({ objetivo, referencia, jugadoresCampo, apP }) {
+export function calcularDimensiones({ objetivo, referencia, jugadoresCampo, apP, campoMax = CAMPO_MAXIMO }) {
   const obj = OBJETIVOS[objetivo] || { ajusteRatio: 0 }; // sin objetivo: proporción de partida, sin ajuste
   const ref = REFERENCIAS[referencia] || REFERENCIAS.sin_referencia;
   const n = Math.max(1, jugadoresCampo);
@@ -102,9 +102,12 @@ export function calcularDimensiones({ objetivo, referencia, jugadoresCampo, apP 
   let ancho = Math.round(area / largo);
   if (ancho > largo) [largo, ancho] = [ancho, largo];
 
-  if (largo > CAMPO_MAXIMO.largo) { largo = CAMPO_MAXIMO.largo; ancho = Math.round(area / largo); }
-  if (ancho > CAMPO_MAXIMO.ancho) { ancho = CAMPO_MAXIMO.ancho; }
-  if (largo * ancho < area - 1) avisos.push('Con este número de jugadores y este espacio por jugador, la zona no cabe en un campo de fútbol 11. Se ha limitado al campo completo.');
+  // La zona no puede pasar del campo (el de fútbol 11 salvo que se elija otro con sus medidas reales).
+  const esDefecto = campoMax === CAMPO_MAXIMO;
+  let recortada = false; // solo se avisa si la zona se ha tenido que recortar de verdad (no por el redondeo)
+  if (largo > campoMax.largo) { largo = campoMax.largo; ancho = Math.round(area / largo); recortada = true; }
+  if (ancho > campoMax.ancho) { ancho = campoMax.ancho; recortada = true; }
+  if (recortada && largo * ancho < area - 1) avisos.push(`Con este número de jugadores y este espacio por jugador, la zona no cabe ${esDefecto ? 'en un campo de fútbol 11' : 'en el campo elegido'}. Se ha limitado al ${esDefecto ? 'campo completo' : 'tamaño del campo'}.`);
   if (ancho < 12) avisos.push('La zona sale muy estrecha (menos de 12 m de ancho). Prueba con menos jugadores o con más espacio por jugador.');
 
   return { largo, ancho, apPReal: Math.round((largo * ancho) / n), avisos };

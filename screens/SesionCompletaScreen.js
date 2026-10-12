@@ -8,6 +8,7 @@ import {
   listarPlantillasEntrenoApi,
   listarTareasApi,
   listarJugadoresApi,
+  listarCamposApi,
   listarPartidosApi,
   obtenerAsistenciasApi,
   obtenerSemanasCargaApi,
@@ -20,9 +21,10 @@ import { pesosGrupos } from '../data/partidoPrevio';
 import { OBJETIVOS, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from '../data/tareas';
 import { formatearFechaCorta } from '../data/fecha';
 import { generarDocumento } from '../data/compartir';
+import DibujoTarea from '../components/DibujoTarea';
 
 // Tarjeta de una tarea dentro de la sesión (o de uno de sus grupos).
-const tarjetaTarea = (t) => (
+const tarjetaTarea = (t, campos) => (
   <View key={t.id} style={styles.tarea}>
     <View style={styles.tareaCabecera}>
                     <Text style={styles.tareaNombre} numberOfLines={2}>{t.nombre}</Text>
@@ -32,6 +34,7 @@ const tarjetaTarea = (t) => (
                     {formatoTarea(t)} · {textoDimensiones(t)}{t.objetivo && OBJETIVOS[t.objetivo] ? ` · ${OBJETIVOS[t.objetivo].corto}` : ''}
                   </Text>
                   <Text style={styles.tareaTrabajo}>{t.series} × {formatoDuracion(segundosDe(t))}{t.pausa_seg ? ` · pausa ${t.pausa_seg} s` : ''} · {(t.jugadores || []).length} jugadores asignados</Text>
+                  <DibujoTarea tarea={t} campos={campos} altoMax={170} />
                   {!!t.descripcion && <Text style={styles.tareaDescripcion}>{t.descripcion}</Text>}
                 </View>
   );
@@ -45,13 +48,14 @@ export default function SesionCompletaScreen({ route }) {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [ent, todos, plantillas, tareas, jugadores, asist] = await Promise.all([
+      const [ent, todos, plantillas, tareas, jugadores, asist, campos] = await Promise.all([
         obtenerEntrenamientoApi(entrenamientoId),
         listarEntrenamientosApi(),
         listarPlantillasEntrenoApi().catch(() => null),
         listarTareasApi(entrenamientoId).catch(() => null),
         listarJugadoresApi(),
         obtenerAsistenciasApi(entrenamientoId),
+        listarCamposApi().catch(() => []),
       ]);
       const { tipo } = tipoDeSesion(ent, todos);
       // RPE real de esta sesión (lo pone el preparador físico). Si no hay permiso o no está puesto, se queda en null.
@@ -73,7 +77,7 @@ export default function SesionCompletaScreen({ route }) {
       const hayLista = asist.length > 0;
       const trabajoAparte = activos.filter((j) => j.readaptacion && (!hayLista || presentes.includes(j.id)));
       setDatos({
-        ent, tipo, real, pesos, tareasDisponibles: tareas !== null,
+        ent, tipo, real, pesos, campos, tareasDisponibles: tareas !== null,
         sesion: construirSesion({ entrenamiento: ent, plantilla: plantillas ? plantillas.find((p) => p.numero === tipo) : null, tareas: tareas || [], tipo }),
         jugadoresPorId: Object.fromEntries(jugadores.map((j) => [j.id, j])),
         trabajoAparte,
@@ -110,13 +114,13 @@ export default function SesionCompletaScreen({ route }) {
     );
   }
 
-  const { ent, tipo, real, pesos, sesion, jugadoresPorId, trabajoAparte, asistentes, tareasDisponibles } = datos;
+  const { ent, tipo, real, pesos, sesion, jugadoresPorId, trabajoAparte, asistentes, tareasDisponibles, campos } = datos;
   const hayTareas = sesion.items.some((it) => (it.tareas || []).length > 0 || (it.grupos || []).some((g) => g.tareas.length > 0));
   const comparacion = hayTareas ? compararCarga(cargaPrevista(sesion, pesos || undefined), real) : null;
   const hora = (ent.hora || '').slice(0, 5);
 
   const imprimir = () =>
-    generarDocumento(htmlSesion({ entrenamiento: ent, tipo, sesion, jugadoresPorId, trabajoAparte, asistentes, lugar: ent.lugar }), 'la sesión');
+    generarDocumento(htmlSesion({ entrenamiento: ent, tipo, sesion, jugadoresPorId, trabajoAparte, asistentes, lugar: ent.lugar, campos }), 'la sesión');
 
   return (
     <View style={styles.contenedor}>
@@ -180,11 +184,11 @@ export default function SesionCompletaScreen({ route }) {
               {!!it.texto && <Text style={styles.linea}>{it.texto}</Text>}
               {!!it.aviso && <Text style={styles.avisoBloque}>{it.aviso}</Text>}
 
-              {(it.tareas || []).map(tarjetaTarea)}
+              {(it.tareas || []).map((t) => tarjetaTarea(t, campos))}
               {(it.grupos || []).map((g) => (
                 <View key={g.clave} style={styles.grupo}>
                   <Text style={styles.grupoTitulo}>{g.titulo} <Text style={styles.grupoCriterio}>· {g.criterio} · {g.minutos}'</Text></Text>
-                  {g.tareas.map(tarjetaTarea)}
+                  {g.tareas.map((t) => tarjetaTarea(t, campos))}
                   {g.tareas.length === 0 && <Text style={styles.vacio}>Sin tareas todavía.</Text>}
                 </View>
               ))}

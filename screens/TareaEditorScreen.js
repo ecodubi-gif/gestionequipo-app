@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   obtenerUsuario,
   listarJugadoresApi,
+  listarCamposApi,
   obtenerAsistenciasApi,
   obtenerSemanasCargaApi,
   crearTareaApi,
@@ -14,6 +15,7 @@ import {
   actualizarBibliotecaApi,
 } from '../data/apiClient';
 import { bibliotecaDesdeTarea, buscarPorNombre } from '../data/biblioteca';
+import DibujoTarea from '../components/DibujoTarea';
 import StepperNumero from '../components/StepperNumero';
 import { confirmar } from '../data/confirmar';
 import { lunesDeLaSemana } from '../data/planSesion';
@@ -91,6 +93,8 @@ export default function TareaEditorScreen({ navigation, route }) {
     }
     return apPInicial(objetivoPrevio);
   });
+  const [campos, setCampos] = useState([]);
+  const [dibujo, setDibujo] = useState(tarea?.dibujo || null); // null = colocación automática
   const [manual, setManual] = useState(tarea?.largo && tarea?.ancho ? { largo: tarea.largo, ancho: tarea.ancho } : null);
   const [series, setSeries] = useState(tarea?.series ?? trabajoPrevio?.series ?? 3);
   const [duracion, setDuracion] = useState(tarea ? segundosDe(tarea) || 360 : trabajoPrevio?.duracion_seg ?? 360);
@@ -99,19 +103,29 @@ export default function TareaEditorScreen({ navigation, route }) {
   // Si la tarea ya existía, o si se han tocado a mano las series, el tiempo o la pausa, no se pisan al cambiar de objetivo.
   const [trabajoTocado, setTrabajoTocado] = useState(Boolean(tarea?.id));
 
+  // Al volver de la pizarra: el dibujo y las medidas de la zona que se hayan dejado.
+  const vuelta = route.params?.pizarra;
+  useEffect(() => {
+    if (!vuelta) return;
+    setDibujo(vuelta.dibujo);
+    setManual({ largo: vuelta.largo, ancho: vuelta.ancho });
+  }, [vuelta?.ts]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const puedeEditar = usuario && ROLES_EDITAR.includes(usuario.role);
   const titulo = BLOQUES_TAREAS.find((b) => b.clave === bloque)?.titulo || 'Tarea';
 
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [u, jug, asist, sem] = await Promise.all([
+      const [u, jug, asist, sem, cps] = await Promise.all([
         obtenerUsuario(),
         listarJugadoresApi(),
         obtenerAsistenciasApi(entrenamientoId),
         // El riesgo que interesa al planificar es el de la semana ANTERIOR a la sesión: la de la sesión aún no está completa.
         fechaSesion ? obtenerSemanasCargaApi(sumarDias(lunesDeLaSemana(fechaSesion), -7), 6).catch(() => null) : Promise.resolve(null),
+        listarCamposApi().catch(() => []),
       ]);
+      setCampos(cps);
       setUsuario(u);
       setJugadores(jug.filter((j) => j.estado !== 'baja'));
       setAsistentes(asist.length > 0 ? asist.filter((a) => ['presente', 'retraso'].includes(a.estado)).map((a) => a.jugador.id) : null);
@@ -244,6 +258,7 @@ export default function TareaEditorScreen({ navigation, route }) {
     pausa_seg: pausa,
     descripcion: descripcion.trim() || null,
     jugadores: Object.entries(asignaciones).map(([id, rol]) => ({ jugador_id: Number(id), rol })),
+    dibujo: dibujo || null,
   });
 
   const guardar = async () => {
@@ -461,6 +476,29 @@ export default function TareaEditorScreen({ navigation, route }) {
           ))}
         </View>
 
+        <DibujoTarea
+          campos={campos}
+          tarea={{ largo, ancho, referencia, n_ataque: conteo.ataque, n_defensa: conteo.defensa, n_comodines: conteo.comodin, n_porteros: conteo.portero, dibujo }}
+        />
+        {!lectura && campo > 0 && (
+          <TouchableOpacity
+            style={styles.botonPizarra}
+            testID="abrir-pizarra"
+            onPress={() => navigation.navigate('Pizarra', {
+              volverA: 'TareaEditor',
+              dibujo,
+              tarea: { nombre: nombre.trim(), objetivo, referencia, apP, largo, ancho, n_ataque: conteo.ataque, n_defensa: conteo.defensa, n_comodines: conteo.comodin, n_porteros: conteo.portero, jugadoresCampo: campo },
+            })}
+          >
+            <Text style={styles.botonPizarraTexto}>🖊 Editar en la pizarra</Text>
+          </TouchableOpacity>
+        )}
+        {!lectura && dibujo && (
+          <TouchableOpacity onPress={() => setDibujo(null)}>
+            <Text style={styles.enlace}>Quitar mi dibujo y volver a la colocación automática</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.filaAjuste}>
           <Text style={styles.ajusteEtiqueta}>Espacio por jugador</Text>
           <StepperNumero valor={apP} deshabilitado={lectura} pasos={[-10, -5, 5, 10]} min={20} max={400} formato={(v) => `${v} m²`} onCambiar={(v) => { setApP(v); setManual(null); }} />
@@ -615,6 +653,8 @@ const styles = StyleSheet.create({
   cajaTrabajo: { backgroundColor: '#f5f3ff', borderRadius: 10, padding: 12, marginTop: 12 },
   cajaTrabajoTitulo: { fontSize: 12, color: '#5b21b6', fontWeight: '700', lineHeight: 17 },
   cajaTrabajoAviso: { fontSize: 11, color: '#92400e', marginTop: 4 },
+  botonPizarra: { backgroundColor: '#7c3aed', borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 10 },
+  botonPizarraTexto: { color: '#fff', fontWeight: '800', fontSize: 14 },
   enlace: { fontSize: 12, color: '#2563eb', fontWeight: '700', textAlign: 'center', marginTop: 12 },
   nota: { fontSize: 11, color: '#9ca3af', lineHeight: 16, marginTop: 14 },
   avisoGrupo: { fontSize: 11, color: '#6d28d9', backgroundColor: '#f5f3ff', borderRadius: 8, padding: 8, marginTop: 8 },
