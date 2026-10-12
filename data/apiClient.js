@@ -340,3 +340,20 @@ export async function actualizarCampoApi(id, datos) {
 export async function eliminarCampoApi(id) {
   return peticion('DELETE', `/campos-entrenamiento/${id}`);
 }
+
+// ---------- Liga (calendario, clasificación y notas del rival) ----------
+
+export async function obtenerLigaApi() {
+  const { data } = await peticion('GET', '/liga');
+  return data;
+}
+
+export async function guardarClasificacionApi(filas, fecha) {
+  const { data } = await peticion('PUT', '/liga/clasificacion', { filas, fecha });
+  return data;
+}
+
+export async function guardarNotaRivalApi(equipo, texto) {
+  const { data } = await peticion('PUT', '/liga/notas', { equipo, texto });
+  return data;
+}

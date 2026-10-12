@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { obtenerUsuario, cerrarSesion } from '../data/apiClient';
 import { confirmar } from '../data/confirmar';
@@ -36,8 +36,8 @@ function opcionesDe(rol, navigation) {
   if (cuerpoTecnico) {
     opciones.push({ emoji: '📈', titulo: 'RPE', subtitulo: 'Carga y riesgo (consulta)', ir: () => navigation.navigate('Rpe') });
   }
+  opciones.push({ emoji: '🏆', titulo: 'Liga', subtitulo: 'Clasificación y rival', ir: () => navigation.navigate('Liga') });
   opciones.push({ emoji: '👥', titulo: 'Plantilla', subtitulo: 'Jugadores del club', ir: () => navigation.navigate('PlantillaClub') });
-  opciones.push({ emoji: '🔒', titulo: 'Mi contraseña', subtitulo: 'Cambiarla', ir: () => navigation.navigate('CambiarPassword') });
   return opciones;
 }
 
@@ -57,19 +57,19 @@ export default function PanelScreen({ navigation }) {
     }, 'Cerrar sesión');
   };
 
-  const inicial = usuario?.name?.charAt(0)?.toUpperCase() || '?';
   const opciones = usuario ? opcionesDe(usuario.role, navigation) : [];
 
   return (
     <View style={styles.fondo}>
       <View style={styles.cabecera}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarTexto}>{inicial}</Text>
-        </View>
+        <Image source={require('../assets/escudo.png')} style={styles.escudo} resizeMode="contain" accessibilityLabel="Escudo del club" />
         <View style={{ flex: 1 }}>
           <Text style={styles.nombreUsuario} numberOfLines={1}>{usuario?.name}</Text>
           <Text style={styles.rolUsuario}>{ETIQUETA_ROL[usuario?.role] || usuario?.role}</Text>
         </View>
+        <TouchableOpacity style={styles.botonClave} onPress={() => navigation.navigate('CambiarPassword')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Cambiar mi contraseña">
+          <Text style={styles.botonSalirTexto}>🔒</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.botonSalir} onPress={salir} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.botonSalirTexto}>🚪 Salir</Text>
         </TouchableOpacity>
@@ -102,6 +102,8 @@ const styles = StyleSheet.create({
     width: 46, height: 46, borderRadius: 23, backgroundColor: VERDE, alignItems: 'center', justifyContent: 'center', marginRight: 12,
     shadowColor: VERDE, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
+  escudo: { width: 28, height: 50, marginRight: 12 },
+  botonClave: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#f3f4f6', marginRight: 8 },
   avatarTexto: { color: '#fff', fontWeight: '800', fontSize: 18 },
   nombreUsuario: { color: '#111827', fontWeight: '700', fontSize: 16 },
   rolUsuario: { color: '#6b7280', fontSize: 12, marginTop: 1 },

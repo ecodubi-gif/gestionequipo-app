@@ -22,6 +22,7 @@ import RpeRiesgoScreen from './screens/RpeRiesgoScreen';
 import TareaEditorScreen from './screens/TareaEditorScreen';
 import PizarraScreen from './screens/PizarraScreen';
 import CamposScreen from './screens/CamposScreen';
+import LigaScreen from './screens/LigaScreen';
 import SesionCompletaScreen from './screens/SesionCompletaScreen';
 import SemanaScreen from './screens/SemanaScreen';
 import EntrenamientoDetalleScreen from './screens/EntrenamientoDetalleScreen';
@@ -74,6 +75,7 @@ export default function App() {
         <Stack.Screen name="TareaEditor" component={TareaEditorScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Pizarra" component={PizarraScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Campos" component={CamposScreen} options={{ title: 'Campos de entrenamiento' }} />
+        <Stack.Screen name="Liga" component={LigaScreen} options={{ title: 'Liga' }} />
         <Stack.Screen name="Semana" component={SemanaScreen} options={{ title: 'Semana' }} />
         <Stack.Screen name="SesionCompleta" component={SesionCompletaScreen} options={{ title: 'Sesión completa' }} />
         <Stack.Screen

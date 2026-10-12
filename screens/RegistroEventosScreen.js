@@ -25,7 +25,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { confirmar } from '../data/confirmar';
 import { compartirWhatsApp, generarDocumento } from '../data/compartir';
-import { calcularMinutosJugados } from '../data/minutos';
+import { calcularMinutosJugados, jugadoresEnCampo, jugadoresEnBanquillo } from '../data/minutos';
 
 // Quien registra lo que pasa EN DIRECTO (empezar, goles, tarjetas,
 // cambios, finalizar) es el delegado — el entrenador está dirigiendo
@@ -51,27 +51,6 @@ const ICONO = { tiro: { gol: '⚽', parada: '🧤', fuera: '🎯' }, corner: '�
 function nombreCompleto(jugador) {
   if (!jugador) return '';
   return `${jugador.nombre} ${jugador.apellidos || ''}`.trim();
-}
-
-function jugadoresEnCampo(convocatoria, eventos) {
-  let enCampo = convocatoria.filter((c) => c.titular).map((c) => c.jugador);
-  eventos.forEach((e) => {
-    if (e.tipo === 'cambio') {
-      if (e.jugador_sale_id) enCampo = enCampo.filter((j) => j.id !== e.jugador_sale_id);
-      if (e.jugador_entra_id) {
-        const suplente = convocatoria.find((c) => c.jugador.id === e.jugador_entra_id)?.jugador;
-        if (suplente) enCampo.push(suplente);
-      }
-    } else if (e.tipo === 'roja' && e.jugador_id) {
-      enCampo = enCampo.filter((j) => j.id !== e.jugador_id);
-    }
-  });
-  return enCampo;
-}
-
-function jugadoresEnBanquillo(convocatoria, eventos) {
-  const yaEntraron = new Set(eventos.filter((e) => e.tipo === 'cambio' && e.jugador_entra_id).map((e) => e.jugador_entra_id));
-  return convocatoria.filter((c) => !c.titular && !yaEntraron.has(c.jugador.id)).map((c) => c.jugador);
 }
 
 export default function RegistroEventosScreen({ route, navigation }) {

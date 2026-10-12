@@ -19,13 +19,15 @@ export default function DatosPartidoScreen({ navigation, route }) {
   // Si viene un partidoId, esta pantalla EDITA un partido ya creado en vez de crear uno nuevo.
   const partidoId = route?.params?.partidoId;
   const editando = Boolean(partidoId);
-  const [equipoLocal, setEquipoLocal] = useState('');
-  const [equipoVisitante, setEquipoVisitante] = useState('');
-  const [fecha, setFecha] = useState(new Date().toISOString());
-  // En casa siempre jugamos en el mismo campo donde entrenamos.
-  const CAMPO_CASA = 'Los Manantiales';
-  const [lugar, setLugar] = useState(CAMPO_CASA);
-  const [esLocal, setEsLocal] = useState(true);
+  // Si viene del calendario de la liga, ya traen los equipos, la fecha y si jugamos en casa.
+  const previo = route?.params?.previo;
+  const [equipoLocal, setEquipoLocal] = useState(previo?.local || '');
+  const [equipoVisitante, setEquipoVisitante] = useState(previo?.visitante || '');
+  const [fecha, setFecha] = useState(previo?.fecha ? new Date(`${previo.fecha}T11:00:00`).toISOString() : new Date().toISOString());
+  // En casa siempre jugamos en el mismo campo.
+  const CAMPO_CASA = 'Estadio Juan Benjumea';
+  const [lugar, setLugar] = useState(previo && !previo.esLocal ? '' : CAMPO_CASA);
+  const [esLocal, setEsLocal] = useState(previo ? previo.esLocal : true);
   const [lugarCitacion, setLugarCitacion] = useState('');
   const [horaCitacion, setHoraCitacion] = useState(new Date().toISOString());
   const [errores, setErrores] = useState({});

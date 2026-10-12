@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Image,
 } from 'react-native';
 import { iniciarSesion } from '../data/apiClient';
 import { entrarConReintento, describirEnvio } from '../data/login';
@@ -80,9 +81,7 @@ export default function LoginScreen({ navigation, route }) {
 
       <KeyboardAvoidingView style={styles.contenedor} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.logo}>
-            <Text style={styles.logoEmoji}>⚽</Text>
-          </View>
+          <Image source={require('../assets/escudo.png')} style={styles.escudo} resizeMode="contain" accessibilityLabel="Escudo del C.D. Herrera" />
           <Text style={styles.titulo}>Gestión de Equipo</Text>
           <Text style={styles.subtitulo}>Acceso del cuerpo técnico</Text>
 
@@ -174,6 +173,7 @@ const styles = StyleSheet.create({
     shadowColor: VERDE, shadowOpacity: 0.3, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
   },
   logoEmoji: { fontSize: 34 },
+  escudo: { width: 84, height: 150, alignSelf: 'center', marginBottom: 14 },
   titulo: { fontSize: 26, fontWeight: '800', color: '#111827', textAlign: 'center', letterSpacing: 0.3 },
   subtitulo: { fontSize: 13, color: '#6b7280', textAlign: 'center', marginTop: 6, marginBottom: 28 },
   caja: {
