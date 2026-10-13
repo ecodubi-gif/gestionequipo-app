@@ -68,7 +68,7 @@ export const ROLES = {
   portero: { etiqueta: 'Portero', color: '#16a34a', fondo: '#dcfce7' },
 };
 
-export const CAMPO_MAXIMO = { largo: 105, ancho: 68 }; // un campo de fútbol 11
+export const CAMPO_MAXIMO = { largo: 100, ancho: 60 }; // nuestro campo (Estadio Juan Benjumea): 100 × 60 m; la mitad, 50 × 60
 
 // Rol con el que se propone a un jugador según su posición (se puede cambiar a mano).
 export function rolSugerido(posicion) {

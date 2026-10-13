@@ -14,7 +14,7 @@ const z2=P.zonaSugerida({objetivo:'fuerza',referencia:'porterias',jugadoresCampo
 t('si cabe, sin avisos de tamaño', !z2.avisos.some(a=>a.includes('no cabe')));
 for (const [n,ap] of [[8,100],[10,130],[8,80],[6,60],[12,150]]) t(`sin falso aviso: ${n} jugadores a ${ap} m²`, calcularDimensiones({objetivo:'fuerza',referencia:'porterias',jugadoresCampo:n,apP:ap}).avisos.length===0);
 t('con el límite de verdad sí avisa', calcularDimensiones({objetivo:'fuerza',referencia:'porterias',jugadoresCampo:40,apP:300}).avisos.some(a=>a.includes('fútbol 11')));
-t('campo por defecto 105×68', P.CAMPO_POR_DEFECTO.largo===105&&P.CAMPO_POR_DEFECTO.ancho===68);
+t('campo por defecto 100×60', P.CAMPO_POR_DEFECTO.largo===100&&P.CAMPO_POR_DEFECTO.ancho===60 && P.campoEfectivo(P.CAMPO_POR_DEFECTO,50,60).medio===true && P.campoEfectivo(P.CAMPO_POR_DEFECTO,100,60).medio===false && P.campoEfectivo(P.CAMPO_POR_DEFECTO,50,60).largo===50);
 // --- posición de la zona
 t('centrar', JSON.stringify(P.centrarZona(campo,40,30))===JSON.stringify({x:10,y:5}));
 t('limitar: no sale por la derecha/abajo', JSON.stringify(P.limitarZona(campo,{x:50,y:50},40,30))===JSON.stringify({x:20,y:10}));

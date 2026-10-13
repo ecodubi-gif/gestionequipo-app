@@ -131,7 +131,7 @@ export default function CamposScreen() {
           <StepperNumero valor={editando.largo} pasos={[-5, -1, 1, 5]} min={LIMITES_CAMPO.largo[0]} max={LIMITES_CAMPO.largo[1]} formato={(v) => `${v} m`} onCambiar={(v) => setEditando((e) => ({ ...e, largo: v }))} />
           <Text style={styles.etiqueta}>Ancho</Text>
           <StepperNumero valor={editando.ancho} pasos={[-5, -1, 1, 5]} min={LIMITES_CAMPO.ancho[0]} max={LIMITES_CAMPO.ancho[1]} formato={(v) => `${v} m`} onCambiar={(v) => setEditando((e) => ({ ...e, ancho: v }))} />
-          <Text style={styles.nota}>Fútbol 11 profesional: 105 × 68 m. Fútbol 7: unos 60 × 40 m.</Text>
+          <Text style={styles.nota}>Nuestro campo, el Estadio Juan Benjumea: 100 × 60 m (medio campo: 50 × 60). Fútbol 7: unos 60 × 40 m.</Text>
           <View style={styles.botonesForm}>
             <TouchableOpacity style={styles.botonCancelar} onPress={() => setEditando(null)}>
               <Text style={styles.botonCancelarTexto}>Cancelar</Text>
