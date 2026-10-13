@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, PanResponder, useWindowDimensions, Alert,
 } from 'react-native';
@@ -8,7 +8,7 @@ import { listarCamposApi } from '../data/apiClient';
 import {
   CAMPO_POR_DEFECTO, FLECHAS, ELEMENTOS, COLORES_ZONA, TAMANO_EDITABLE, LIMITES,
   nuevoDibujo, normalizarDibujo, ajustarDibujo, limitarZona, centrarZona, zonaSugerida, jugadoresIniciales,
-  anadirElemento, anadirFlecha, borrar, cambiarElemento, cambiarTipoFlecha, mover, buscarEn, aZona, avisosDibujo, campoDe,
+  anadirElemento, anadirFlecha, borrar, cambiarElemento, cambiarTipoFlecha, mover, buscarEn, aZona, avisosDibujo, campoDe, campoEfectivo,
 } from '../data/pizarra';
 import { formasTarea, pxAMetros, ventanaZona } from '../data/formas';
 import { ROLES } from '../data/tareas';
@@ -24,12 +24,15 @@ export default function PizarraScreen({ navigation, route }) {
   const { height: alturaPantalla } = useWindowDimensions();
 
   const [campos, setCampos] = useState([]);
-  const [campo, setCampo] = useState(CAMPO_POR_DEFECTO);
+  const [campoElegido, setCampoElegido] = useState(CAMPO_POR_DEFECTO);
   const [dims, setDims] = useState({ largo: tareaInicial.largo || 40, ancho: tareaInicial.ancho || 30 });
   const tarea = { ...tareaInicial, largo: dims.largo, ancho: dims.ancho };
+  // Medio campo o campo entero según la zona de la tarea (ver campoEfectivo): con eso se dibuja y se limita todo.
+  const campo = useMemo(() => campoEfectivo(campoElegido, dims.largo, dims.ancho), [campoElegido, dims.largo, dims.ancho]);
   const [dibujo, setDibujo] = useState(() => {
     const guardado = normalizarDibujo(dibujoInicial);
-    return guardado || nuevoDibujo({ tarea: { ...tareaInicial, largo: tareaInicial.largo || 40, ancho: tareaInicial.ancho || 30 }, campo: CAMPO_POR_DEFECTO });
+    const l0 = tareaInicial.largo || 40; const a0 = tareaInicial.ancho || 30;
+    return guardado || nuevoDibujo({ tarea: { ...tareaInicial, largo: l0, ancho: a0 }, campo: campoEfectivo(CAMPO_POR_DEFECTO, l0, a0) });
   });
   const [enfoque, setEnfoque] = useState('zona'); // 'zona' (ampliada, para colocar con comodidad) | 'campo' (el campo entero)
   const [seleccion, setSeleccion] = useState(null);
@@ -45,8 +48,9 @@ export default function PizarraScreen({ navigation, route }) {
     const lista = await listarCamposApi().catch(() => []);
     setCampos(lista);
     const c = campoDe(normalizarDibujo(dibujoInicial), lista);
-    setCampo(c);
-    setDibujo((d) => ajustarDibujo({ ...d, zona: dibujoInicial ? d.zona : centrarZona(c, dims.largo, dims.ancho) }, tarea, c));
+    setCampoElegido(c);
+    const ce = campoEfectivo(c, dims.largo, dims.ancho);
+    setDibujo((d) => ajustarDibujo({ ...d, zona: dibujoInicial ? d.zona : centrarZona(ce, dims.largo, dims.ancho) }, tarea, ce));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { cargarCampos(); }, [cargarCampos]);
@@ -57,7 +61,7 @@ export default function PizarraScreen({ navigation, route }) {
   // La ventana ampliada se calcula al entrar, al cambiar de campo o de medidas, o al pulsar "Centrar vista"; no se mueve mientras se arrastra.
   const [ventanaFija, setVentanaFija] = useState(() => ventanaZona({ tarea: { largo: dims.largo, ancho: dims.ancho }, dibujo, campo }));
   const recentrar = useCallback(() => setVentanaFija(ventanaZona({ tarea: { largo: dims.largo, ancho: dims.ancho }, dibujo: estado.current.dibujo, campo })), [dims.largo, dims.ancho, campo]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { recentrar(); }, [recentrar, enfoque]);
+  useEffect(() => { recentrar(); }, [recentrar, enfoque, campos]);
   const dibujoVista = flechaEnCurso
     ? (() => {
         const a = aZona(dibujo, tarea, flechaEnCurso.a.x, flechaEnCurso.a.y); const b = aZona(dibujo, tarea, flechaEnCurso.b.x, flechaEnCurso.b.y);
@@ -162,13 +166,13 @@ export default function PizarraScreen({ navigation, route }) {
   };
 
   const elegirCampo = (c) => {
-    setCampo(c);
-    cambiar({ ...dibujo, campo_id: c.id, zona: limitarZona(c, dibujo.zona, dims.largo, dims.ancho) });
+    setCampoElegido(c);
+    cambiar({ ...dibujo, campo_id: c.id, zona: limitarZona(campoEfectivo(c, dims.largo, dims.ancho), dibujo.zona, dims.largo, dims.ancho) });
   };
 
   const cambiarMedidas = (largo, ancho) => {
     setDims({ largo, ancho });
-    setDibujo((d) => ({ ...d, zona: limitarZona(campo, d.zona, largo, ancho) }));
+    setDibujo((d) => ({ ...d, zona: limitarZona(campoEfectivo(campoElegido, largo, ancho), d.zona, largo, ancho) }));
   };
 
   const girarZona = () => cambiarMedidas(dims.ancho, dims.largo);
@@ -176,10 +180,10 @@ export default function PizarraScreen({ navigation, route }) {
   const usarZonaSugerida = () => {
     const z = zonaSugerida({
       objetivo: tarea.objetivo, referencia: tarea.referencia, jugadoresCampo: tarea.jugadoresCampo || (tarea.n_ataque + tarea.n_defensa + tarea.n_comodines) || 1,
-      apP: tarea.apP, campo,
+      apP: tarea.apP, campo: campoElegido,
     });
     setDims({ largo: z.largo, ancho: z.ancho });
-    cambiar({ ...dibujo, zona: centrarZona(campo, z.largo, z.ancho) });
+    cambiar({ ...dibujo, zona: centrarZona(campoEfectivo(campoElegido, z.largo, z.ancho), z.largo, z.ancho) });
     if (z.avisos.length) Alert.alert('Aviso', z.avisos[0]);
   };
 
@@ -232,7 +236,7 @@ export default function PizarraScreen({ navigation, route }) {
       </View>
       <View style={styles.filaVista}>
         <Text style={styles.mini}>Vista:</Text>
-        {[['zona', '🔍 Zona ampliada'], ['campo', '⬜ Campo entero']].map(([k, t]) => (
+        {[['zona', '🔍 Zona ampliada'], ['campo', campo.medio ? '⬜ Medio campo' : '⬜ Campo entero']].map(([k, t]) => (
           <TouchableOpacity key={k} style={[styles.chipVista, enfoque === k && styles.chipVistaActivo]} onPress={() => setEnfoque(k)}>
             <Text style={[styles.chipVistaTexto, enfoque === k && { color: '#fff' }]}>{t}</Text>
           </TouchableOpacity>
@@ -379,6 +383,9 @@ export default function PizarraScreen({ navigation, route }) {
             <StepperNumero valor={dims.ancho} pasos={[-5, -1, 1, 5]} min={5} max={75} formato={(v) => `${v} m`} onCambiar={(v) => cambiarMedidas(dims.largo, v)} />
             <Text style={styles.info}>
               {dims.largo * dims.ancho} m²{apPAhora ? ` · ${apPAhora} m² por jugador de campo (${jugadoresCampoN})` : ''}
+            </Text>
+            <Text style={styles.info}>
+              {campo.medio ? `Medio campo: la zona cabe en la mitad del campo (${campo.largoTotal / 2} × ${campo.ancho} m) y se supone una portería móvil.` : `Campo entero (${campo.largoTotal} × ${campo.ancho} m).`}
             </Text>
             <View style={styles.filaWrap}>
               <TouchableOpacity style={styles.chip} onPress={usarZonaSugerida}><Text style={styles.chipTexto}>✨ Zona sugerida por la carga</Text></TouchableOpacity>

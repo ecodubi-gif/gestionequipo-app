@@ -171,9 +171,9 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
     }
   };
 
-  const alternarActivacion = async () => {
+  const alternarBloque = async (clave) => {
     try {
-      await onGuardarBloques({ activacion_activa: bloques.activacion_activa === false });
+      await onGuardarBloques({ [`${clave}_activa`]: bloques[`${clave}_activa`] === false });
     } catch (err) {
       Alert.alert('No se pudo guardar', err.message);
     }
@@ -286,7 +286,7 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
 
       <Text style={styles.subtitulo}>3. Trabajo del entrenador (esta sesión)</Text>
       {BLOQUES_ENTRENADOR.map((b) => {
-        const apagado = b.conInterruptor && bloques.activacion_activa === false;
+        const apagado = b.conInterruptor && bloques[`${b.clave}_activa`] === false;
         const tareasDelBloque = (tareas || []).filter((t) => t.bloque === b.clave);
         const conGrupos = bloqueConGrupos(tipo, b.clave);
         const repartidas = repartirTareasPorGrupo(tareasDelBloque);
@@ -305,7 +305,7 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
               </Text>
             </View>
             {b.conInterruptor && puedeEntrenador && (
-              <TouchableOpacity style={[styles.interruptor, !apagado && styles.interruptorActivo]} onPress={alternarActivacion}>
+              <TouchableOpacity style={[styles.interruptor, !apagado && styles.interruptorActivo]} onPress={() => alternarBloque(b.clave)}>
                 <Text style={styles.interruptorTexto}>{apagado ? 'OFF' : 'ON'}</Text>
               </TouchableOpacity>
             )}

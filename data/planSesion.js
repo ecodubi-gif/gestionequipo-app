@@ -4,7 +4,7 @@
 // Bloques que rellena el entrenador/segundo en cada sesión. El preventivo y la
 // movilidad no están aquí: son del preparador físico y viven en las plantillas.
 export const BLOQUES_ENTRENADOR = [
-  { clave: 'rueda_perfiles', titulo: 'Rueda de perfiles', duracion: 7 },
+  { clave: 'rueda_perfiles', titulo: 'Rueda de perfiles', duracion: 7, conInterruptor: true },
   { clave: 'activacion', titulo: 'Activación', duracion: 8, conInterruptor: true },
   { clave: 'parte_central', titulo: 'Parte central específica', duracion: null },
   { clave: 'cierre_tactico', titulo: 'Cierre táctico', duracion: null },

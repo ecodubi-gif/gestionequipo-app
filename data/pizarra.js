@@ -66,6 +66,15 @@ export function zonaSugerida({ objetivo, referencia, jugadoresCampo, apP, campo 
   return { largo: r.largo, ancho: r.ancho, avisos: r.avisos };
 }
 
+// Medio campo o campo entero según la zona de la tarea: si cabe en la mitad del campo (largo hasta la mitad y ancho
+// hasta el ancho del campo; se supone una portería móvil), se trabaja y se dibuja medio campo; si no, el campo entero.
+// Devuelve el campo con el que se dibuja y se limita todo: { ...campo, largo (el visible), largoTotal, medio }.
+export function campoEfectivo(campo, L, W) {
+  const c = campo || CAMPO_POR_DEFECTO;
+  const medio = L <= c.largo / 2 + 0.5 && W <= c.ancho + 1e-9;
+  return medio ? { ...c, largo: c.largo / 2, largoTotal: c.largo, medio: true } : { ...c, largoTotal: c.largo, medio: false };
+}
+
 export function limitarZona(campo, pos, L, W) {
   const c = campo || CAMPO_POR_DEFECTO;
   return {

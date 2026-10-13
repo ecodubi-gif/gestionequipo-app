@@ -25,8 +25,8 @@ t('sin NaN', !JSON.stringify(r.formas).includes('null')||!/NaN/.test(JSON.string
 t('sin NaN (de verdad)', r.formas.every(f=>Object.values(f).every(v=>typeof v!=='number'||Number.isFinite(v))));
 // pizarra = campo entero con marcas
 const pz=F.formasTarea({tarea,dibujo:d,campo,modo:'pizarra',anchoMax:340,altoMax:240});
-t('pizarra: ventana = campo entero', pz.ventana.w===105&&pz.ventana.h===68);
-t('pizarra: líneas de campo grande (círculo central y áreas)', pz.formas.some(f=>f.k==='circle'&&f.r>20)&&pz.formas.filter(f=>f.k==='rect'&&f.fill==='none').length===4);
+t('pizarra: la zona 40x30 se dibuja en medio campo (y el dibujo viejo, más allá de la mitad, con el campo entero)', pz.ventana.w===105&&pz.ventana.h===68);
+t('pizarra: líneas de campo de referencia', pz.formas.filter(f=>f.k==='line').length>30);
 const chico={id:2,nombre:'Chico',largo:50,ancho:40};
 const dc=P.nuevoDibujo({tarea,campo:chico});
 const pc=F.formasTarea({tarea,dibujo:dc,campo:chico,modo:'pizarra'});
@@ -81,5 +81,38 @@ t('leyenda vacía sin flechas', F.leyendaFlechas(d0).length===0);
   t('con la ventana ampliada la escala es mayor', rz.escala>rc.escala*1.4);
   const pz=F.pxAMetros(rz,rz.pad+(dz.zona.x-v.x0)*rz.escala,rz.pad+(dz.zona.y-v.y0)*rz.escala);
   t('pxAMetros respeta la ventana', Math.abs(pz.x-dz.zona.x)<0.01 && Math.abs(pz.y-dz.zona.y)<0.01);
+}
+
+// ---- Medio campo o campo entero según la zona
+{
+  const c100 = { id: 9, nombre: 'C100', largo: 100, ancho: 60 };
+  const e1 = P.campoEfectivo(c100, 50, 60);
+  t('50x60 en 100x60 es medio campo', e1.medio === true && e1.largo === 50 && e1.largoTotal === 100 && e1.ancho === 60);
+  t('100x60 es campo entero', P.campoEfectivo(c100, 100, 60).medio === false && P.campoEfectivo(c100, 100, 60).largo === 100);
+  t('menos de 50x60 es medio campo', P.campoEfectivo(c100, 40, 30).medio === true);
+  t('más largo que la mitad es entero', P.campoEfectivo(c100, 60, 40).medio === false);
+  t('en 105x68, 50x60 es medio campo', P.campoEfectivo(campo, 50, 60).medio === true);
+  const tm = { ...tarea, largo: 40, ancho: 30 };
+  const dm = P.nuevoDibujo({ tarea: tm, campo: P.campoEfectivo(campo, 40, 30) });
+  const rm = F.formasTarea({ tarea: tm, dibujo: dm, campo, modo: 'pizarra', anchoMax: 300, altoMax: 300 });
+  t('medio campo: el campo dibujado es la mitad', Math.abs(rm.ventana.w - 52.5) < 0.01 && Math.abs(rm.ventana.h - 68) < 0.01);
+  const lineas = (res) => res.formas.filter((f) => f.k === 'line' && f.stroke === F.COLOR_CAMPO.linea);
+  t('medio campo: hay líneas de campo de referencia', lineas(rm).length > 40);
+  const tf = { ...tarea, largo: 100, ancho: 60 };
+  const df = P.nuevoDibujo({ tarea: tf, campo: P.campoEfectivo(campo, 100, 60) });
+  const rf = F.formasTarea({ tarea: tf, dibujo: df, campo, modo: 'pizarra', anchoMax: 300, altoMax: 300 });
+  t('campo entero: la ventana es el campo entero', Math.abs(rf.ventana.w - 105) < 0.01);
+  t('campo entero: más líneas que medio campo (dos áreas)', lineas(rf).length > lineas(rm).length);
+  // También en la vista pequeña de la tarea hay referencias
+  const rv = F.formasTarea({ tarea: tm, dibujo: dm, campo, modo: 'vista', anchoMax: 300, altoMax: 190 });
+  t('en la vista de la tarea también salen líneas del campo', lineas(rv).length > 5);
+  // Ninguna línea se sale del lienzo
+  const dentro = (res) => lineas(res).every((l) => [l.x1, l.x2].every((x) => x >= -0.01 && x <= res.ancho + 0.01) && [l.y1, l.y2].every((y) => y >= -0.01 && y <= res.alto + 0.01));
+  t('las líneas no se salen del lienzo', dentro(rm) && dentro(rf) && dentro(rv));
+  const [a, b, cc, dd] = F.recortar(-5, 5, 5, 5, 0, 0, 10, 10);
+  t('recortar un segmento que entra', a === 0 && b === 5 && cc === 5 && dd === 5 && F.recortar(20, 5, 30, 5, 0, 0, 10, 10) === null);
+  // Medio campo: todas las líneas dentro de la mitad
+  const seg = F.lineasDeCampo(P.campoEfectivo(campo, 40, 30));
+  t('medio campo: nada pasa de la mitad', seg.every((s2) => s2[0] <= 52.5 + 1e-6 && s2[2] <= 52.5 + 1e-6 && s2[1] >= -1e-6 && s2[3] <= 68 + 1e-6));
 }
 console.log(`formas: ${ok} ok, ${mal} mal`); process.exit(mal?1:0);

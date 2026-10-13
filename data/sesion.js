@@ -46,7 +46,7 @@ export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
   });
 
   for (const b of BLOQUES_ENTRENADOR) {
-    if (b.clave === 'activacion' && textos.activacion_activa === false) continue; // desactivada en esta sesión
+    if (b.conInterruptor && textos[`${b.clave}_activa`] === false) continue; // desactivado en esta sesión (rueda de perfiles o activación)
     const deEsteBloque = (tareas || []).filter((t) => t.bloque === b.clave).map((t) => ({ ...t, minutos: minutosTarea(t) }));
     const suma = (lista) => lista.reduce((s, t) => s + t.minutos, 0);
     // Entreno 1: los dos grupos trabajan a la vez, así que el bloque dura lo que el más largo,

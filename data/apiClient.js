@@ -229,7 +229,7 @@ export async function guardarSemanaApi(numero, semana) {
   return data;
 }
 
-// bloques: { rueda_perfiles?, activacion?, activacion_activa?, parte_central?, cierre_tactico? } (entrenador/segundo)
+// bloques: { rueda_perfiles?, rueda_perfiles_activa?, activacion?, activacion_activa?, parte_central?, cierre_tactico? } (entrenador/segundo)
 export async function guardarBloquesEntrenamientoApi(id, bloques) {
   const { data } = await peticion('PUT', `/entrenamientos/${id}/bloques`, { bloques });
   return data;

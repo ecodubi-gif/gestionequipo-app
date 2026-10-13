@@ -1,12 +1,75 @@
 // Convierte el dibujo de la tarea en formas sencillas (rectángulos, círculos, líneas, polígonos y textos) en píxeles.
 // Las dos formas de pintarlas leen esta misma lista: la pantalla (react-native-svg) y la hoja imprimible (texto SVG).
-import { FLECHAS, COLOR_JUGADOR, CAMPO_POR_DEFECTO, dimsZona, aCampo, medidasElemento, zonaCabe } from './pizarra';
+import { FLECHAS, COLOR_JUGADOR, CAMPO_POR_DEFECTO, dimsZona, aCampo, medidasElemento, zonaCabe, campoEfectivo } from './pizarra';
 
 export const COLOR_CAMPO = { fondo: '#e8f6ea', linea: '#16a34a', zona: '#bbf7d0', zonaBorde: '#15803d', error: '#dc2626', seleccion: '#7c3aed' };
 const PAD = 8; // px de aire alrededor del dibujo (porterías y comodines van sobre el borde)
 
 const limitar = (v, min, max) => Math.min(max, Math.max(min, v));
 const num = (v) => Math.round(v * 100) / 100;
+
+// Segmento recortado a un rectángulo (Liang–Barsky). Devuelve null si queda fuera.
+export function recortar(x1, y1, x2, y2, xa, ya, xb, yb) {
+  let t0 = 0; let t1 = 1;
+  const dx = x2 - x1; const dy = y2 - y1;
+  for (const [p, q] of [[-dx, x1 - xa], [dx, xb - x1], [-dy, y1 - ya], [dy, yb - y1]]) {
+    if (Math.abs(p) < 1e-12) { if (q < 0) return null; } else {
+      const r = q / p;
+      if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; } else { if (r < t0) return null; if (r < t1) t1 = r; }
+    }
+  }
+  return [x1 + t0 * dx, y1 + t0 * dy, x1 + t1 * dx, y1 + t1 * dy];
+}
+
+// Arco de circunferencia como segmentos (ángulos en radianes, de a0 a a1).
+function arco(cx, cy, r, a0, a1, n = 24) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t0 = a0 + ((a1 - a0) * i) / n; const t1 = a0 + ((a1 - a0) * (i + 1)) / n;
+    out.push([cx + r * Math.cos(t0), cy + r * Math.sin(t0), cx + r * Math.cos(t1), cy + r * Math.sin(t1)]);
+  }
+  return out;
+}
+
+// Las líneas de un campo de fútbol (en metros, como segmentos) para tener referencias: medio campo (el fondo a la izquierda y
+// la línea de medio campo en el borde derecho) o campo entero. c es el campo efectivo de campoEfectivo().
+export function lineasDeCampo(c) {
+  const T = c.largoTotal || c.largo; const A = c.ancho; const mitad = T / 2;
+  const seg = [];
+  const rect = (x, y, w, h) => { seg.push([x, y, x + w, y], [x + w, y, x + w, y + h], [x + w, y + h, x, y + h], [x, y + h, x, y]); };
+  seg.push([mitad, 0, mitad, A]); // línea de medio campo
+  if (A >= 20) {
+    if (c.medio) seg.push(...arco(mitad, A / 2, 9.15, Math.PI / 2, (3 * Math.PI) / 2)); else seg.push(...arco(mitad, A / 2, 9.15, 0, 2 * Math.PI, 36));
+  }
+  const lados = c.medio ? [0] : [0, 1];
+  for (const lado of lados) {
+    const x0 = lado === 0 ? 0 : T; // línea de fondo
+    const area = (prof, ancho) => rect(lado === 0 ? 0 : T - prof, (A - ancho) / 2, prof, ancho);
+    if (A >= 42) {
+      area(16.5, 40.32);
+      // Semicírculo del área (la parte de fuera del área grande), centrado en el punto de penalti.
+      const ang = Math.acos((16.5 - 11) / 9.15);
+      seg.push(...(lado === 0 ? arco(x0 + 11, A / 2, 9.15, -ang, ang) : arco(x0 - 11, A / 2, 9.15, Math.PI - ang, Math.PI + ang)));
+    }
+    if (A >= 20) area(5.5, 18.32);
+    // Córners
+    const cy0 = [0, A];
+    for (const cy of cy0) {
+      const sy = cy === 0 ? 1 : -1;
+      const a0 = lado === 0 ? (sy === 1 ? 0 : -Math.PI / 2) : (sy === 1 ? Math.PI / 2 : Math.PI);
+      seg.push(...arco(x0, cy, 1, a0, a0 + Math.PI / 2, 6));
+    }
+  }
+  return seg;
+}
+
+// Puntos del campo (centro y penaltis), en metros.
+export function puntosDeCampo(c) {
+  const T = c.largoTotal || c.largo; const A = c.ancho;
+  const p = A >= 20 ? [[T / 2, A / 2]] : [];
+  if (A >= 42) { p.push([11, A / 2]); if (!c.medio) p.push([T - 11, A / 2]); }
+  return p;
+}
 
 // Zona del campo que se enseña. En la pizarra, el campo entero; en las vistas, la zona de la tarea con un margen.
 export function ventanaVista({ tarea, dibujo, campo, modo }) {
@@ -40,31 +103,30 @@ export function ventanaZona({ tarea, dibujo, campo }) {
  * seleccion: { tipo, i, extremo? } para marcarla (solo pizarra).
  */
 export function formasTarea({ tarea, dibujo, campo, modo = 'vista', anchoMax = 300, altoMax = 190, seleccion = null, ventana = null }) {
-  const c = campo || CAMPO_POR_DEFECTO;
+  const { L, W } = dimsZona(tarea);
+  // Medio campo o campo entero según la zona (si ya viene decidido, se respeta).
+  let c = campo && campo.medio !== undefined ? campo : campoEfectivo(campo, L, W);
+  // Un dibujo antiguo con la zona más allá de la mitad se enseña con el campo entero.
+  if (c.medio && dibujo.zona.x + L > c.largo + 0.01) c = { ...c, largo: c.largoTotal, medio: false };
   const vent = ventana || ventanaVista({ tarea, dibujo, campo: c, modo });
   const escala = Math.min((anchoMax - PAD * 2) / vent.w, (altoMax - PAD * 2) / vent.h);
   const X = (x) => PAD + (x - vent.x0) * escala;
   const Y = (y) => PAD + (y - vent.y0) * escala;
   const S = (m) => m * escala;
   const formas = [];
-  const { L, W } = dimsZona(tarea);
 
   // --- Campo (solo lo que entra en la ventana)
   const cx0 = Math.max(0, vent.x0); const cy0 = Math.max(0, vent.y0);
   const cx1 = Math.min(c.largo, vent.x0 + vent.w); const cy1 = Math.min(c.ancho, vent.y0 + vent.h);
   formas.push({ k: 'rect', x: X(cx0), y: Y(cy0), w: S(cx1 - cx0), h: S(cy1 - cy0), fill: COLOR_CAMPO.fondo, stroke: COLOR_CAMPO.linea, sw: 1.5 });
-  const linea = (x1, y1, x2, y2) => formas.push({ k: 'line', x1: X(x1), y1: Y(y1), x2: X(x2), y2: Y(y2), stroke: COLOR_CAMPO.linea, sw: 1, op: 0.45 });
-  const contorno = (x, y, w, h) => formas.push({ k: 'rect', x: X(x), y: Y(y), w: S(w), h: S(h), fill: 'none', stroke: COLOR_CAMPO.linea, sw: 1, op: 0.45 });
-  if (modo === 'pizarra' && c.largo >= 40) {
-    linea(c.largo / 2, 0, c.largo / 2, c.ancho);
-    if (c.largo >= 90 && c.ancho >= 55) {
-      formas.push({ k: 'circle', cx: X(c.largo / 2), cy: Y(c.ancho / 2), r: S(9.15), fill: 'none', stroke: COLOR_CAMPO.linea, sw: 1, op: 0.45 });
-      for (const lado of [0, 1]) {
-        contorno(lado === 0 ? 0 : c.largo - 16.5, (c.ancho - 40.32) / 2, 16.5, 40.32);
-        contorno(lado === 0 ? 0 : c.largo - 5.5, (c.ancho - 18.32) / 2, 5.5, 18.32);
-      }
-    }
-  }
+  lineasDeCampo(c).forEach(([x1, y1, x2, y2]) => {
+    const t = recortar(x1, y1, x2, y2, cx0, cy0, cx1, cy1);
+    if (t) formas.push({ k: 'line', x1: X(t[0]), y1: Y(t[1]), x2: X(t[2]), y2: Y(t[3]), stroke: COLOR_CAMPO.linea, sw: 1.2 });
+  });
+
+  puntosDeCampo(c).forEach(([x, y]) => {
+    if (x >= cx0 && x <= cx1 && y >= cy0 && y <= cy1) formas.push({ k: 'circle', cx: X(x), cy: Y(y), r: 1.6, fill: COLOR_CAMPO.linea, stroke: COLOR_CAMPO.linea, sw: 0.5 });
+  });
 
   // --- Zona de la tarea
   const cabe = zonaCabe(c, L, W);
