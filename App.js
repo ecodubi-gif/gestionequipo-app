@@ -27,6 +27,7 @@ import ScoutingScreen from './screens/ScoutingScreen';
 import ScoutingHistorialScreen from './screens/ScoutingHistorialScreen';
 import DialogoHost from './components/DialogoHost';
 import './data/dialogos';
+import './data/ajusteWeb';
 import SesionCompletaScreen from './screens/SesionCompletaScreen';
 import SemanaScreen from './screens/SemanaScreen';
 import EntrenamientoDetalleScreen from './screens/EntrenamientoDetalleScreen';
