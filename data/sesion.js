@@ -1,6 +1,6 @@
 // La sesión completa: el orden de los bloques, cuánto dura cada cosa, a qué hora empieza,
 // y la hoja imprimible.
-import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
 import { OBJETIVOS, REFERENCIAS, ROLES, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from './tareas';
 import { formatearFechaCorta } from './fecha';
 import { dibujoDeTarea } from './pizarra';
@@ -47,8 +47,8 @@ export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
   });
 
   for (const b of BLOQUES_ENTRENADOR) {
-    if (b.conInterruptor && textos[`${b.clave}_activa`] === false) continue; // desactivado en esta sesión (rueda de perfiles o activación)
-    const deEsteBloque = (tareas || []).filter((t) => t.bloque === b.clave).map((t) => ({ ...t, minutos: minutosTarea(t) }));
+    if (b.conInterruptor && textos[`${b.clave}_activa`] === false) continue; // desactivado en esta sesión (rueda físico-técnica)
+    const deEsteBloque = (tareas || []).filter((t) => bloqueDeTarea(t) === b.clave).map((t) => ({ ...t, minutos: minutosTarea(t) }));
     const suma = (lista) => lista.reduce((s, t) => s + t.minutos, 0);
     // Entreno 1: los dos grupos trabajan a la vez, así que el bloque dura lo que el más largo,
     // más las tareas que no son de ningún grupo (esas se hacen seguidas).
@@ -60,16 +60,17 @@ export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
       sumaTareas = Math.max(...grupos.map((g) => g.minutos)) + suma(rep.otras);
       deEsteBloque.splice(0, deEsteBloque.length, ...rep.otras);
     }
-    // Rueda de perfiles y activación tienen su tiempo fijo; parte central y cierre duran lo que sumen sus tareas.
+    // La rueda físico-técnica tiene su tiempo fijo; parte central y cierre duran lo que sumen sus tareas.
     const minutos = b.duracion ? b.duracion : sumaTareas;
     anadir({
       clave: b.clave, titulo: b.titulo, responsable: 'Entrenador / segundo', minutos,
       texto: textos[b.clave] || null, tareas: deEsteBloque, grupos,
+      postas: b.clave === 'rueda_perfiles' ? postasDe(plantilla) : null,
       aviso: b.duracion && sumaTareas > b.duracion ? `Las tareas suman ${sumaTareas}' y este bloque dura ${b.duracion}'.` : null,
     });
   }
   // Todos los entrenos acaban con estiramientos (5 minutos), también los ya creados.
-  anadir({ clave: BLOQUE_FINAL.clave, titulo: BLOQUE_FINAL.titulo, responsable: 'Entrenador / segundo', minutos: MIN_ESTIRAMIENTOS, texto: textos.estiramientos || null });
+  anadir({ clave: BLOQUE_FINAL.clave, titulo: BLOQUE_FINAL.titulo, responsable: 'Entrenador / segundo', minutos: MIN_ESTIRAMIENTOS, texto: textos.estiramientos || (plantilla && plantilla.semana && plantilla.semana.estiramientos) || null });
   return { items, total: reloj };
 }
 
@@ -123,6 +124,10 @@ export function htmlSesion({ entrenamiento, tipo, sesion, jugadoresPorId, trabaj
     if (it.tramos) {
       cuerpo += '<ul class="lista">' + it.tramos.map((m) =>
         `<li><b>${esc(m.tiempo)} ${esc(m.zona)}.</b> ${esc(m.descripcion)}</li>`).join('') + '</ul>';
+    }
+    if (it.postas && it.postas.length) {
+      cuerpo += `<p class="tenue">${esc(it.postas.length)} postas de 3' con rotación de 1'.</p><ol class="lista">` + it.postas.map((x) =>
+        `<li><b>${esc(x.titulo)}.</b> <u>Físico:</u> ${esc(x.fisico)} <u>Técnico:</u> ${esc(x.tecnico)}</li>`).join('') + '</ol>';
     }
     if (it.sinPrograma) cuerpo += '<p class="tenue">Sin programa de preparación física para este tipo de entreno.</p>';
     if (it.texto) cuerpo += `<p>${saltos(it.texto)}</p>`;

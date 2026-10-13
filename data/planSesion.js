@@ -4,11 +4,21 @@
 // Bloques que rellena el entrenador/segundo en cada sesión. El preventivo y la
 // movilidad no están aquí: son del preparador físico y viven en las plantillas.
 export const BLOQUES_ENTRENADOR = [
-  { clave: 'rueda_perfiles', titulo: 'Rueda de perfiles', duracion: 7, conInterruptor: true },
-  { clave: 'activacion', titulo: 'Activación', duracion: 8, conInterruptor: true },
+  { clave: 'rueda_perfiles', titulo: 'Rueda físico-técnica', duracion: 15, conInterruptor: true },
   { clave: 'parte_central', titulo: 'Parte central específica', duracion: null },
   { clave: 'cierre_tactico', titulo: 'Cierre táctico', duracion: null },
 ];
+
+// La rueda de perfiles y la activación son ahora un solo bloque (la rueda físico-técnica, 15').
+// Las tareas que se hicieron con el bloque 'activacion' se muestran dentro de la rueda: no se pierde ninguna.
+export const bloqueDeTarea = (t) => (t && t.bloque === 'activacion' ? 'rueda_perfiles' : t && t.bloque);
+
+// La rueda: hasta 4 postas de 3' con 1' de rotación (4 × 3' + 3 × 1' = 15').
+export const MAX_POSTAS = 6;
+export const postasDe = (plantilla) => {
+  const v = plantilla && plantilla.semana && plantilla.semana.postas;
+  return Array.isArray(v) ? v : [];
+};
 
 // Último bloque de todos los entrenos: fijo, no se rellena ni se puede quitar.
 export const BLOQUE_FINAL = { clave: 'estiramientos', titulo: 'Estiramientos', duracion: 5 };

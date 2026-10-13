@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from 'react-native';
-import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from '../data/planSesion';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from '../data/planSesion';
 import { confirmar } from '../data/confirmar';
 import BibliotecaTareas from './BibliotecaTareas';
 import { CAMPOS_PERFIL } from '../data/semana';
@@ -101,6 +101,22 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
     });
   };
 
+  const postas = postasDe(plantilla);
+  const abrirPosta = (indice) => {
+    const x = postas[indice];
+    setEdicion({
+      tipo: 'posta', indice,
+      titulo: `Posta ${indice + 1}`,
+      nota: `Se aplica a todos los Entreno ${tipo}.`,
+      campos: [
+        { clave: 'titulo', etiqueta: 'Nombre de la posta', obligatorio: true },
+        { clave: 'fisico', etiqueta: 'Trabajo físico (material)', multilinea: true, obligatorio: true },
+        { clave: 'tecnico', etiqueta: 'Recurso técnico-táctico (con balón)', multilinea: true },
+      ],
+      valores: { titulo: x.titulo || '', fisico: x.fisico || '', tecnico: x.tecnico || '' },
+    });
+  };
+
   const cargarPlantilla = () => {
     const n = (semana?.tareas || []).length;
     const hay = (tareas || []).length;
@@ -158,6 +174,9 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
       } else if (edicion.tipo === 'tramo') {
         const nuevo = plantilla.movilidad.map((m, i) => (i === edicion.indice ? { ...m, ...v } : m));
         await onGuardarPlantilla(tipo, { movilidad: nuevo });
+      } else if (edicion.tipo === 'posta') {
+        const nuevas = postas.map((x, i) => (i === edicion.indice ? { ...x, ...v } : x));
+        await onGuardarSemana(tipo, { ...(semana || {}), tareas: (semana && semana.tareas) || [], postas: nuevas });
       } else if (edicion.tipo === 'perfil') {
         await onGuardarSemana(tipo, { ...(semana || {}), tareas: (semana && semana.tareas) || [], ...v });
       } else {
@@ -287,7 +306,7 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
       <Text style={styles.subtitulo}>3. Trabajo del entrenador (esta sesión)</Text>
       {BLOQUES_ENTRENADOR.map((b) => {
         const apagado = b.conInterruptor && bloques[`${b.clave}_activa`] === false;
-        const tareasDelBloque = (tareas || []).filter((t) => t.bloque === b.clave);
+        const tareasDelBloque = (tareas || []).filter((t) => bloqueDeTarea(t) === b.clave);
         const conGrupos = bloqueConGrupos(tipo, b.clave);
         const repartidas = repartirTareasPorGrupo(tareasDelBloque);
         return (
@@ -310,6 +329,28 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
               </TouchableOpacity>
             )}
           </TouchableOpacity>
+
+          {b.clave === 'rueda_perfiles' && !apagado && (
+            <View style={styles.tareasBloque}>
+              {postas.length === 0 ? (
+                <Text style={styles.grupoNota}>Sin postas escritas para el Entreno {tipo}.</Text>
+              ) : (
+                <>
+                  <Text style={styles.grupoNota}>{postas.length} postas de 3' con rotación de 1'{puedeTipo ? '. Toca una para cambiarla (se aplica a todos los Entreno ' + tipo + ').' : '.'}</Text>
+                  {postas.map((x, i) => (
+                    <TouchableOpacity key={i} style={styles.estacion} disabled={!puedeTipo} onPress={() => abrirPosta(i)} activeOpacity={0.7}>
+                      <View style={styles.numero}><Text style={styles.numeroTexto}>{i + 1}</Text></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.zona}>{x.titulo}</Text>
+                        <Text style={styles.ejercicio}><Text style={styles.perfilEtiqueta}>Físico: </Text>{x.fisico}</Text>
+                        {!!x.tecnico && <Text style={styles.ejercicio}><Text style={styles.perfilEtiqueta}>Técnico: </Text>{x.tecnico}</Text>}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+            </View>
+          )}
 
           {tareas !== null && !apagado && (
             <View style={styles.tareasBloque}>
@@ -371,7 +412,7 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
       <View style={styles.bloque} testID="bloque-estiramientos">
         <View style={{ flex: 1 }}>
           <Text style={styles.zona}>{BLOQUE_FINAL.titulo} · {BLOQUE_FINAL.duracion}'</Text>
-          <Text style={styles.ejercicio}>Última tarea de todos los entrenos</Text>
+          <Text style={styles.ejercicio}>{(plantilla && semana && semana.estiramientos) || 'Última tarea de todos los entrenos'}</Text>
         </View>
       </View>
 

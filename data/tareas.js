@@ -8,8 +8,8 @@
 import { GRUPOS_POSICIONES } from './posiciones';
 
 export const BLOQUES_TAREAS = [
-  { clave: 'rueda_perfiles', titulo: 'Rueda de perfiles' },
-  { clave: 'activacion', titulo: 'Activación' },
+  { clave: 'rueda_perfiles', titulo: 'Rueda físico-técnica' },
+  { clave: 'activacion', titulo: 'Rueda físico-técnica' },
   { clave: 'parte_central', titulo: 'Parte central específica' },
   { clave: 'cierre_tactico', titulo: 'Cierre táctico' },
 ];
