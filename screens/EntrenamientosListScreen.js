@@ -16,7 +16,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import SelectorFecha from '../components/SelectorFecha';
 import SelectorHora from '../components/SelectorHora';
-import { listarEntrenamientosApi, crearEntrenamientoApi, eliminarEntrenamientoApi, obtenerUsuario } from '../data/apiClient';
+import { listarEntrenamientosApi, crearEntrenamientoApi, editarEntrenamientoApi, eliminarEntrenamientoApi, obtenerUsuario } from '../data/apiClient';
+import { componerLugar, parsearLugar, aFechaHoraISO } from '../data/lugar';
 import { confirmar } from '../data/confirmar';
 import { formatearFechaCorta } from '../data/fecha';
 
@@ -45,6 +46,7 @@ export default function EntrenamientosListScreen({ navigation }) {
   const [tipoCampo, setTipoCampo] = useState('Campo entero');
   const [material, setMaterial] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
 
   const cargar = useCallback(async () => {
     setError('');
@@ -83,7 +85,19 @@ export default function EntrenamientosListScreen({ navigation }) {
     );
   };
 
+  const abrirEditar = (item) => {
+    const l = parsearLugar(item.lugar, CAMPO_CASA);
+    setEditandoId(item.id);
+    setFechaHora(aFechaHoraISO(item.fecha, item.hora));
+    setSuperficie(l.superficie);
+    setNombreCampo(l.nombreCampo);
+    setTipoCampo(l.tipoCampo);
+    setMaterial(item.material || '');
+    setModalVisible(true);
+  };
+
   const abrirModal = () => {
+    setEditandoId(null);
     setFechaHora(new Date().toISOString());
     setSuperficie('césped natural');
     setNombreCampo('');
@@ -112,16 +126,25 @@ export default function EntrenamientosListScreen({ navigation }) {
     setGuardando(true);
     try {
       const d = new Date(fechaHora);
-      const entrenamiento = await crearEntrenamientoApi({
+      const datos = {
         fecha: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
         hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-        lugar: `${superficie === 'otro' ? nombreCampo.trim() : `${CAMPO_CASA} · ${superficie}`} · ${tipoCampo}`,
-        material: puedeAnadirMaterial ? material.trim() || null : null,
-      });
+        lugar: componerLugar({ superficie, nombreCampo, tipoCampo }, CAMPO_CASA),
+      };
+      if (editandoId) {
+        if (puedeAnadirMaterial) datos.material = material.trim() || null;
+        const nuevo = await editarEntrenamientoApi(editandoId, datos);
+        setEntrenamientos((prev) => prev.map((e) => (e.id === editandoId ? { ...e, ...datos, ...(nuevo || {}) } : e)));
+        setModalVisible(false);
+        setEditandoId(null);
+        cargar();
+        return;
+      }
+      const entrenamiento = await crearEntrenamientoApi({ ...datos, material: puedeAnadirMaterial ? material.trim() || null : null });
       setModalVisible(false);
       navigation.navigate('Asistencia', { entrenamientoId: entrenamiento.id });
     } catch (err) {
-      Alert.alert('No se pudo crear', err.message);
+      Alert.alert(editandoId ? 'No se pudo guardar' : 'No se pudo crear', err.message);
     } finally {
       setGuardando(false);
     }
@@ -155,9 +178,14 @@ export default function EntrenamientosListScreen({ navigation }) {
             <Text style={styles.lugar}>🏟️ {item.lugar}</Text>
             {item.material ? <Text style={styles.material}>🎒 {item.material}</Text> : null}
             {puedeCrear && (
-              <TouchableOpacity style={styles.botonBorrar} onPress={() => borrar(item)}>
-                <Text style={styles.botonBorrarTexto}>🗑 Borrar</Text>
-              </TouchableOpacity>
+              <View style={styles.filaAcciones}>
+                <TouchableOpacity style={styles.botonEditar} onPress={() => abrirEditar(item)} testID={`editar-${item.id}`}>
+                  <Text style={styles.botonEditarTexto}>✏️ Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.botonBorrar} onPress={() => borrar(item)}>
+                  <Text style={styles.botonBorrarTexto}>🗑 Borrar</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </TouchableOpacity>
         )}
@@ -173,7 +201,7 @@ export default function EntrenamientosListScreen({ navigation }) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.modalFondo}>
           <View style={styles.modalContenido}>
-            <Text style={styles.modalTitulo}>Nuevo entrenamiento</Text>
+            <Text style={styles.modalTitulo}>{editandoId ? 'Editar entrenamiento' : 'Nuevo entrenamiento'}</Text>
 
             <Text style={styles.etiqueta}>Fecha</Text>
             <SelectorFecha valor={fechaHora} onCambiar={cambiarFecha} />
@@ -231,7 +259,7 @@ export default function EntrenamientosListScreen({ navigation }) {
                 <Text style={styles.botonCancelarTexto}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.botonConfirmar} onPress={() => { Keyboard.dismiss(); crear(); }} disabled={guardando}>
-                {guardando ? <ActivityIndicator color="#fff" /> : <Text style={styles.botonConfirmarTexto}>Crear</Text>}
+                {guardando ? <ActivityIndicator color="#fff" /> : <Text style={styles.botonConfirmarTexto}>{editandoId ? 'Guardar' : 'Crear'}</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -250,7 +278,10 @@ const styles = StyleSheet.create({
   tarjeta: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10 },
   fecha: { fontSize: 15, fontWeight: '700', color: '#111827', textTransform: 'capitalize' },
   lugar: { fontSize: 13, color: '#6b7280', marginTop: 4 },
-  botonBorrar: { alignSelf: 'flex-end', marginTop: 8, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#fef2f2' },
+  filaAcciones: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
+  botonEditar: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#eff6ff' },
+  botonEditarTexto: { color: '#2563eb', fontWeight: '700', fontSize: 12 },
+  botonBorrar: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#fef2f2' },
   botonBorrarTexto: { color: '#dc2626', fontWeight: '700', fontSize: 12 },
   material: { fontSize: 12, color: '#2563eb', marginTop: 4 },
   botonNuevo: { position: 'absolute', bottom: 24, right: 20, left: 20, backgroundColor: '#16a34a', borderRadius: 12, paddingVertical: 16, alignItems: 'center' },

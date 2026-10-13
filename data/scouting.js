@@ -1,3 +1,4 @@
+import { textoGoles } from './goles';
 // Informe de scouting de un rival. La estructura del informe está aquí (secciones y campos), así la pantalla de
 // edición y la ficha del próximo rival salen de lo mismo. Funciones puras, para poder probarlas.
 // tipo 'texto' = respuesta corta, 'largo' = varias líneas, 'opciones' = una de varias (se puede dejar sin marcar).
@@ -58,7 +59,7 @@ export const SECCIONES = [
   {
     id: 'tendencias', icono: '📈', titulo: 'Métricas y tendencias',
     campos: [
-      { id: 'met_tramos', etiqueta: 'Goles por tramos del partido', tipo: 'largo', ayuda: 'Cuándo son más peligrosos o más vulnerables' },
+      { id: 'met_tramos', etiqueta: 'Goles por tramos del partido', tipo: 'goles', ayuda: 'Cuándo son más peligrosos o más vulnerables. Pon los goles de cada tramo o pega las fichas.' },
       { id: 'met_abp', etiqueta: 'Goles a balón parado frente a jugada elaborada', tipo: 'texto', ayuda: 'Ej: 3 de 11 a balón parado' },
     ],
   },
@@ -80,7 +81,7 @@ export function limpiarInforme(informe) {
   const datos = {};
   for (const [k, v] of Object.entries((informe && informe.datos) || {})) {
     const t = String(v == null ? '' : v).trim();
-    if (validos.has(k) && t) datos[k] = t.slice(0, 600);
+    if ((validos.has(k) || /^goles_(\d{2}|tramos)$/.test(k)) && t) datos[k] = t.slice(0, 600);
   }
   const jugadores = ((informe && informe.jugadores) || [])
     .filter((j) => j && String(j.nombre || '').trim())
@@ -108,7 +109,8 @@ export function resumenInforme(informe) {
       const lineas = [];
       for (const c of s.campos) {
         if (c.grupo) grupo = c.grupo;
-        if (l.datos[c.id]) lineas.push({ id: c.id, grupo, etiqueta: c.etiqueta, valor: l.datos[c.id], formacion: Boolean(c.formacion) });
+        const valor = c.tipo === 'goles' ? [textoGoles(l.datos), l.datos[c.id]].filter(Boolean).join('. ') : l.datos[c.id];
+        if (valor) lineas.push({ id: c.id, grupo, etiqueta: c.etiqueta, valor, formacion: Boolean(c.formacion) });
       }
       return { id: s.id, icono: s.icono, titulo: s.titulo, lineas };
     })
@@ -119,7 +121,7 @@ export function resumenInforme(informe) {
 export function progreso(informe) {
   const l = limpiarInforme(informe);
   const total = SECCIONES.reduce((n, s) => n + s.campos.length, 0);
-  return { hechos: Object.keys(l.datos).length, total };
+  return { hechos: Object.keys(l.datos).filter((k) => !/^goles_(\d{2}|tramos)$/.test(k)).length, total };
 }
 
 export const jugadoresPorTipo = (informe, tipo) => limpiarInforme(informe).jugadores.filter((j) => j.tipo === tipo);
@@ -160,6 +162,11 @@ export function cambiosEntre(anterior, nuevo) {
       cambios.push({ etiqueta: c.etiqueta, tipo: !antes ? 'nuevo' : !ahora ? 'quitado' : 'cambiado' });
     }
   }
+  const gk = (d) => Object.keys(d).filter((k) => /^goles_(\d{2}|tramos)$/.test(k));
+  const gAntes = new Set(gk(a.datos).map((k) => a.datos[k])); const gAhora = new Set(gk(n.datos).map((k) => n.datos[k]));
+  const gAltas = [...gAhora].filter((x) => !gAntes.has(x)).length; const gBajas = [...gAntes].filter((x) => !gAhora.has(x)).length;
+  if (gAltas) cambios.push({ etiqueta: gAltas === 1 ? 'Goles: 1 partido añadido o cambiado' : `Goles: ${gAltas} partidos añadidos o cambiados`, tipo: 'nuevo' });
+  if (gBajas) cambios.push({ etiqueta: gBajas === 1 ? 'Goles: 1 partido quitado o cambiado' : `Goles: ${gBajas} partidos quitados o cambiados`, tipo: 'quitado' });
   const firma = (js) => js.map((j) => `${j.nombre}|${j.dorsal}|${j.tipo}|${j.nota}`);
   const fa = new Set(firma(a.jugadores)); const fn = new Set(firma(n.jugadores));
   const altas = firma(n.jugadores).filter((x) => !fa.has(x)).length;

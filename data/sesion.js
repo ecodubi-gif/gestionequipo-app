@@ -1,6 +1,6 @@
 // La sesión completa: el orden de los bloques, cuánto dura cada cosa, a qué hora empieza,
 // y la hoja imprimible.
-import { BLOQUES_ENTRENADOR, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
 import { OBJETIVOS, REFERENCIAS, ROLES, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from './tareas';
 import { formatearFechaCorta } from './fecha';
 import { dibujoDeTarea } from './pizarra';
@@ -8,6 +8,7 @@ import { formasTarea, svgDeFormas, leyendaFlechas } from './formas';
 
 export const MIN_PREVENTIVO = 15;
 export const MIN_MOVILIDAD = 5;
+export const MIN_ESTIRAMIENTOS = BLOQUE_FINAL.duracion;
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -67,6 +68,8 @@ export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
       aviso: b.duracion && sumaTareas > b.duracion ? `Las tareas suman ${sumaTareas}' y este bloque dura ${b.duracion}'.` : null,
     });
   }
+  // Todos los entrenos acaban con estiramientos (5 minutos), también los ya creados.
+  anadir({ clave: BLOQUE_FINAL.clave, titulo: BLOQUE_FINAL.titulo, responsable: 'Entrenador / segundo', minutos: MIN_ESTIRAMIENTOS, texto: textos.estiramientos || null });
   return { items, total: reloj };
 }
 

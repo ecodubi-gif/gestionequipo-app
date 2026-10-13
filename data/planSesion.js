@@ -10,6 +10,9 @@ export const BLOQUES_ENTRENADOR = [
   { clave: 'cierre_tactico', titulo: 'Cierre táctico', duracion: null },
 ];
 
+// Último bloque de todos los entrenos: fijo, no se rellena ni se puede quitar.
+export const BLOQUE_FINAL = { clave: 'estiramientos', titulo: 'Estiramientos', duracion: 5 };
+
 export const TIPOS_SESION = [1, 2, 3];
 
 // Lunes de la semana (de lunes a domingo) de una fecha 'AAAA-MM-DD'.

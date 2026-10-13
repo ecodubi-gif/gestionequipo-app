@@ -148,7 +148,12 @@ export function formasTarea({ tarea, dibujo, campo, modo = 'vista', anchoMax = 3
     const p = abs(e.u, e.v); const m = medidasElemento(e);
     const w = S(m.largo); const h = S(m.ancho);
     const horizontal = m.largo >= m.ancho;
-    if (e.tipo === 'cono') {
+    if (e.tipo === 'balon') {
+      const r = Math.max(5, S(0.4));
+      formas.push({ k: 'circle', cx: p.x, cy: p.y, r, fill: '#ffffff', stroke: '#111827', sw: 1.4 });
+      // el "pentágono" central del balón
+      formas.push({ k: 'poly', pts: [0, 1, 2, 3, 4].map((i) => [p.x + r * 0.45 * Math.sin((i * 2 * Math.PI) / 5), p.y - r * 0.45 * Math.cos((i * 2 * Math.PI) / 5)]), fill: '#000000', stroke: '#000000', sw: 0.5 });
+    } else if (e.tipo === 'cono') {
       const sz = Math.max(5, S(0.5));
       formas.push({ k: 'poly', pts: [[p.x, p.y - sz * 0.85], [p.x - sz * 0.75, p.y + sz * 0.6], [p.x + sz * 0.75, p.y + sz * 0.6]], fill: '#f97316', stroke: '#c2410c', sw: 1 });
     } else if (e.tipo === 'marca') {

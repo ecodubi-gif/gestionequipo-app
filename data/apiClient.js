@@ -6,6 +6,34 @@ const API_BASE = 'https://ecodubi.com/api';
 const CLAVE_TOKEN = '@auth_token';
 const CLAVE_USUARIO = '@auth_usuario';
 
+// ---------- Llamada al servidor con mensajes claros ----------
+// Si no hay cobertura, se cuelga o el servidor devuelve una página de error en vez de datos, la persona ve un aviso
+// entendible en lugar de "Failed to fetch" o "Unexpected token <".
+const ESPERA_MAXIMA_MS = 30000;
+export const MENSAJE_SIN_CONEXION = 'No hay conexión con el servidor. Comprueba tu internet y vuelve a intentarlo.';
+
+export async function llamar(url, opciones) {
+  const control = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const reloj = control ? setTimeout(() => control.abort(), ESPERA_MAXIMA_MS) : null;
+  try {
+    return await fetch(url, control ? { ...opciones, signal: control.signal } : opciones);
+  } catch (err) {
+    if (err && err.name === 'AbortError') throw new Error('El servidor tarda demasiado en responder. Inténtalo de nuevo en un momento.');
+    throw new Error(MENSAJE_SIN_CONEXION);
+  } finally {
+    if (reloj) clearTimeout(reloj);
+  }
+}
+
+// El cuerpo puede no ser JSON (página de error del servidor, mantenimiento…): en ese caso, objeto vacío.
+export const leerJson = (respuesta) => respuesta.json().catch(() => ({}));
+
+export function mensajeDeEstado(estado) {
+  if (estado === 429) return 'Demasiados intentos seguidos. Espera un minuto y vuelve a probar.';
+  if (estado >= 500) return 'El servidor tiene un problema ahora mismo. Inténtalo en unos minutos.';
+  return `Error del servidor (${estado})`;
+}
+
 // ---------- Sesión ----------
 
 export async function obtenerToken() {
@@ -34,24 +62,24 @@ export async function cambiarPasswordApi(passwordActual, passwordNueva) {
 }
 
 export async function solicitarCodigoRecuperacion(email) {
-  const respuesta = await fetch(`${API_BASE}/olvide-password`, {
+  const respuesta = await llamar(`${API_BASE}/olvide-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email }),
   });
-  const datos = await respuesta.json();
-  if (!respuesta.ok) throw new Error(datos.message || 'No se pudo enviar el código');
+  const datos = await leerJson(respuesta);
+  if (!respuesta.ok) throw new Error(datos.message || mensajeDeEstado(respuesta.status));
   return datos;
 }
 
 export async function restablecerPasswordConCodigo(email, codigo, passwordNueva) {
-  const respuesta = await fetch(`${API_BASE}/restablecer-password`, {
+  const respuesta = await llamar(`${API_BASE}/restablecer-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email, codigo, password_nueva: passwordNueva }),
   });
-  const datos = await respuesta.json();
-  if (!respuesta.ok) throw new Error(datos.message || 'No se pudo restablecer la contraseña');
+  const datos = await leerJson(respuesta);
+  if (!respuesta.ok) throw new Error(datos.message || mensajeDeEstado(respuesta.status));
   return datos;
 }
 
@@ -66,15 +94,16 @@ export async function cerrarSesion() {
 }
 
 export async function iniciarSesion(email, password) {
-  const respuesta = await fetch(`${API_BASE}/login`, {
+  const respuesta = await llamar(`${API_BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  const datos = await respuesta.json();
+  const datos = await leerJson(respuesta);
   if (!respuesta.ok) {
-    throw new Error(datos.message || 'No se pudo iniciar sesión');
+    throw new Error(respuesta.status >= 500 ? mensajeDeEstado(respuesta.status) : datos.message || (respuesta.status === 401 || respuesta.status === 422 ? 'Correo o contraseña incorrectos' : mensajeDeEstado(respuesta.status)));
   }
+  if (!datos.token || !datos.user) throw new Error('El servidor no ha respondido bien. Inténtalo de nuevo.');
   await guardarSesion(datos.token, datos.user);
   return datos.user;
 }
@@ -83,7 +112,7 @@ export async function iniciarSesion(email, password) {
 
 async function peticion(metodo, ruta, cuerpo) {
   const token = await obtenerToken();
-  const respuesta = await fetch(`${API_BASE}${ruta}`, {
+  const respuesta = await llamar(`${API_BASE}${ruta}`, {
     method: metodo,
     headers: {
       'Content-Type': 'application/json',
@@ -100,7 +129,7 @@ async function peticion(metodo, ruta, cuerpo) {
     throw new Error('Sesión caducada, vuelve a iniciar sesión');
   }
 
-  const datos = await respuesta.json().catch(() => ({}));
+  const datos = await leerJson(respuesta);
 
   if (!respuesta.ok) {
     if (respuesta.status === 403) throw new Error('No tienes permiso para hacer esto');
@@ -110,7 +139,7 @@ async function peticion(metodo, ruta, cuerpo) {
       const primerErrorValidacion = Object.values(datos.errors || {})[0]?.[0];
       throw new Error(primerErrorValidacion || datos.message || 'Datos no válidos');
     }
-    throw new Error(datos.message || `Error del servidor (${respuesta.status})`);
+    throw new Error(respuesta.status >= 500 ? mensajeDeEstado(respuesta.status) : datos.message || mensajeDeEstado(respuesta.status));
   }
 
   return datos;
@@ -203,6 +232,12 @@ export async function listarEntrenamientosApi() {
 
 export async function crearEntrenamientoApi(datos) {
   const { data } = await peticion('POST', '/entrenamientos', datos);
+  return data;
+}
+
+// Cambia fecha, hora, lugar y/o material de un entrenamiento ya creado (entrenador y segundo entrenador).
+export async function editarEntrenamientoApi(id, datos) {
+  const { data } = await peticion('POST', `/entrenamientos/${id}/editar`, datos);
   return data;
 }
 

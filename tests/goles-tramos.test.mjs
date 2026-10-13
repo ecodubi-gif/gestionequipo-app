@@ -1,0 +1,12 @@
+import { leerTramos, escribirTramos, resumenDeTramos, tramosVacios } from './goles.mjs';
+import { limpiarInforme, progreso } from './scouting.mjs';
+let n=0; const t=(c,m)=>{ if(!c){console.log('FALLO',m);process.exitCode=1;} else n++; };
+const a=[[2,2],[2,1],[1,0],[2,3],[0,2],[4,1]];
+t(leerTramos(escribirTramos(a)).join()===a.join(),'ida y vuelta');
+t(leerTramos('')===null && leerTramos('1,2;3')===null && leerTramos('a,b;1,1;1,1;1,1;1,1;1,1')===null,'rotos');
+const r=resumenDeTramos(a);
+t(r.gf===11&&r.gc===9&&r.primeraParteF===5&&r.segundaParteC===6&&r.fuerteAFavor[0]==="76-90'"&&r.debilEnContra[0]==="46-60'",'resumen');
+const d={goles_tramos:escribirTramos(a)};
+t(limpiarInforme({datos:d}).datos.goles_tramos&&progreso({datos:d}).hechos===0,'se guarda y no cuenta');
+t(resumenDeTramos(tramosVacios()).gf===0,'vacío');
+console.log(n+' ok');

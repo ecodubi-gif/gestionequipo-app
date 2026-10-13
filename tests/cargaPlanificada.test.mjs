@@ -7,12 +7,15 @@ const T=(id,bloque,objetivo,series,seg,pausa)=>({id,bloque,objetivo,series,durac
 // sesión simple (Entreno 2): central 4x4' fuerza pausa 90 → 4*240+3*90=1230s → 20.5→ round 21 min ; cierre 3x7' fuerza pausa 120 → 1260+240=1500s=25'
 let s=construirSesion({entrenamiento:ent,plantilla,tareas:[T(1,'parte_central','fuerza',4,240,90),T(2,'cierre_tactico','fuerza',3,420,120)],tipo:2});
 let p=cargaPrevista(s);
+t('el último bloque son los estiramientos, 5 minutos', s.items[s.items.length-1].clave==='estiramientos'&&s.items[s.items.length-1].minutos===5&&s.items[s.items.length-1].titulo==='Estiramientos');
+t('estiramientos con rpe 1 en el desglose', p.desglose[p.desglose.length-1].clave==='estiramientos'&&p.desglose[p.desglose.length-1].rpe===1);
+t('todo entreno acaba en estiramientos aunque no haya tareas', construirSesion({entrenamiento:ent,plantilla:null,tareas:[],tipo:1}).items.slice(-1)[0].clave==='estiramientos');
 t('minutos = total de la sesión', p.minutos===s.total);
-// preventivo 15*3 + movilidad 5*2 + (rueda 7 + activación 8 sin tareas)*4 + 21*7 + 25*7
-const esperado=15*3+5*2+7*4+8*4+21*7+25*7;
+// preventivo 15*3 + movilidad 5*2 + (rueda 7 + activación 8 sin tareas)*4 + 21*7 + 25*7 + estiramientos 5*1
+const esperado=15*3+5*2+7*4+8*4+21*7+25*7+5*1;
 t('carga cuenta cada bloque', p.carga===esperado);
 t('rpe = carga / minutos', Math.abs(p.rpe-Math.round(esperado/s.total*10)/10)<0.051);
-t('desglose por bloque', p.desglose.length===6&&p.desglose[0].clave==='preventivo'&&p.desglose[0].rpe===3);
+t('desglose por bloque', p.desglose.length===7&&p.desglose[0].clave==='preventivo'&&p.desglose[0].rpe===3);
 // objetivo distinto cambia el rpe
 const s2=construirSesion({entrenamiento:ent,plantilla,tareas:[T(1,'parte_central','recuperacion',4,240,90),T(2,'cierre_tactico','recuperacion',3,420,120)],tipo:2});
 t('recuperación pesa menos que fuerza', cargaPrevista(s2).carga<p.carga);

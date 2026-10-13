@@ -115,4 +115,12 @@ t('leyenda vacía sin flechas', F.leyendaFlechas(d0).length===0);
   const seg = F.lineasDeCampo(P.campoEfectivo(campo, 40, 30));
   t('medio campo: nada pasa de la mitad', seg.every((s2) => s2[0] <= 52.5 + 1e-6 && s2[2] <= 52.5 + 1e-6 && s2[1] >= -1e-6 && s2[3] <= 68 + 1e-6));
 }
+// --- balón dibujado
+{
+  const tb = { ...tarea, largo: 40, ancho: 30 };
+  let db = P.nuevoDibujo({ tarea: tb, campo: P.campoEfectivo(campo, 40, 30) });
+  db = P.anadirElemento(db, 'balon', 0.5, 0.5).dibujo; db = P.anadirElemento(db, 'balon', 0.3, 0.3).dibujo;
+  const rb = F.formasTarea({ tarea: tb, dibujo: db, campo, modo: 'vista' });
+  t('cada balón se dibuja (círculo blanco con borde oscuro)', rb.formas.filter((f) => f.k === 'circle' && f.fill === '#ffffff' && f.stroke === '#111827').length === 2);
+}
 console.log(`formas: ${ok} ok, ${mal} mal`); process.exit(mal?1:0);

@@ -1,0 +1,11 @@
+import { resumenInforme, progreso } from './scouting.mjs';
+import { hayGoles, textoGoles, escribirTramos } from './goles.mjs';
+let n=0; const t=(c,m)=>{ if(!c){console.log('FALLO',m);process.exitCode=1;} else n++; };
+const d={goles_tramos:escribirTramos([[2,2],[2,1],[1,0],[2,3],[0,2],[4,1]]),met_tramos:'Peligrosos al final'};
+t(hayGoles(d)&&!hayGoles({}),'hayGoles');
+const tx=textoGoles(d); t(/11 a favor · 9 en contra/.test(tx)&&/76-90' 4-1/.test(tx),'texto '+tx);
+const r=resumenInforme({datos:d}); const l=r.find(s=>s.id==='tendencias').lineas.find(x=>x.id==='met_tramos');
+t(l&&/Peligrosos al final/.test(l.valor)&&/11 a favor/.test(l.valor),'resumen con goles y nota');
+t(resumenInforme({datos:{goles_tramos:d.goles_tramos}}).length===1,'solo goles ya sale en la ficha');
+t(resumenInforme({datos:{}}).length===0,'vacío');
+console.log(n+' ok');

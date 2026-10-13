@@ -29,6 +29,7 @@ export const FLECHAS = {
 
 // Medidas reales en metros: largo = lado largo; ancho = el otro lado (en 'zona' y 'escalera' se pueden cambiar).
 export const ELEMENTOS = {
+  balon: { etiqueta: 'Balón', grupo: 'Balones', largo: 0.22, ancho: 0.22 },
   cono: { etiqueta: 'Cono', grupo: 'Conos y marcas', largo: 0.4, ancho: 0.4 },
   marca: { etiqueta: 'Marca / disco', grupo: 'Conos y marcas', largo: 0.3, ancho: 0.3 },
   porteria: { etiqueta: 'Portería', grupo: 'Porterías', largo: 7.32, ancho: 2 },

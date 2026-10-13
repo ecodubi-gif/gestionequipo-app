@@ -8,6 +8,7 @@ export const RPE_ESPERADO = { recuperacion: 3, compensacion: 6, fuerza: 7, puest
 export const RPE_SIN_OBJETIVO = 5;     // tarea sin objetivo elegido
 export const RPE_PREVENTIVO = 3;       // trabajo preventivo del preparador físico
 export const RPE_MOVILIDAD = 2;        // movilidad dinámica
+export const RPE_ESTIRAMIENTOS = 1;    // estiramientos finales
 export const RPE_BLOQUE_SIN_TAREAS = 4; // rueda de perfiles o activación sin tareas montadas
 export const DESVIO_EN_LINEA = 0.15;   // hasta ±15 %: la sesión salió como se había previsto
 export const DESVIO_ALTO = 0.3;        // a partir de ±30 %: muy desviada
@@ -28,6 +29,7 @@ export function cargaPrevista(sesion, pesosGrupo = { recuperacion: 1, compensaci
     let ub;
     if (it.clave === 'preventivo') ub = it.minutos * RPE_PREVENTIVO;
     else if (it.clave === 'movilidad') ub = it.minutos * RPE_MOVILIDAD;
+    else if (it.clave === 'estiramientos') ub = it.minutos * RPE_ESTIRAMIENTOS;
     else if (it.grupos) {
       const w = it.grupos.map((g) => pesosGrupo[g.clave] || 0);
       const suma = w.reduce((a, b) => a + b, 0) || 1;

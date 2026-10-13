@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from 'react-native';
-import { BLOQUES_ENTRENADOR, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from '../data/planSesion';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from '../data/planSesion';
 import { confirmar } from '../data/confirmar';
 import BibliotecaTareas from './BibliotecaTareas';
 import { CAMPOS_PERFIL } from '../data/semana';
@@ -367,6 +367,13 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
           </React.Fragment>
         );
       })}
+
+      <View style={styles.bloque} testID="bloque-estiramientos">
+        <View style={{ flex: 1 }}>
+          <Text style={styles.zona}>{BLOQUE_FINAL.titulo} · {BLOQUE_FINAL.duracion}'</Text>
+          <Text style={styles.ejercicio}>Última tarea de todos los entrenos</Text>
+        </View>
+      </View>
 
       {puedeEntrenador && tareas !== null && tareas.length > 0 && !!plantilla && (
         <TouchableOpacity style={styles.accionSecundaria} onPress={guardarComoPlantilla}>

@@ -137,4 +137,14 @@ t('campoDe: id borrado → primero de la lista', P.campoDe({campo_id:99},[campo]
 t('campoDe: sin campos → por defecto', P.campoDe(null,[]).id===null);
 t('hayDibujo', P.hayDibujo(d0)&&!P.hayDibujo(null)&&!P.hayDibujo({zona:{x:0,y:0},jugadores:[],elementos:[],flechas:[]}));
 t('catálogo: todos los elementos pedidos', ['cono','marca','porteria','miniporteria','pica','valla','aro','escalera','zona','texto'].every(k=>P.ELEMENTOS[k]));
+// --- balones
+{
+  const b0 = P.nuevoDibujo({ tarea: { largo: 40, ancho: 30, n_ataque: 4, n_defensa: 4, n_comodines: 1, n_porteros: 2 }, campo: P.CAMPO_POR_DEFECTO });
+  let b = P.anadirElemento(b0, 'balon', 0.5, 0.5).dibujo;
+  b = P.anadirElemento(b, 'balon', 0.2, 0.7).dibujo;
+  b = P.anadirElemento(b, 'balon', 0.8, 0.3).dibujo;
+  t('se pueden poner varios balones', b.elementos.filter((e) => e.tipo === 'balon').length === 3);
+  t('el balón es un elemento válido tras normalizar', P.normalizarDibujo(b).elementos.filter((e) => e.tipo === 'balon').length === 3);
+  t('el balón mide 22 cm', P.medidasElemento(b.elementos[0]).largo === 0.22);
+}
 console.log(`pizarra: ${ok} ok, ${mal} mal`); process.exit(mal?1:0);

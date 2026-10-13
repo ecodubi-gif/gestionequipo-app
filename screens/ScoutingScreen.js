@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Keyboa
 import { guardarScoutingApi } from '../data/apiClient';
 import { confirmar } from '../data/confirmar';
 import Formacion from '../components/Formacion';
+import GolesRival from '../components/GolesRival';
+import { hayGoles } from '../data/goles';
 import { SECCIONES, TIPOS_JUGADOR, MAX_JUGADORES, limpiarInforme, progreso, lineasFormacion } from '../data/scouting';
 
 const MORADO = '#7c3aed';
@@ -65,7 +67,7 @@ export default function ScoutingScreen({ navigation, route }) {
 
         {SECCIONES.map((s) => {
           const abiertaEsta = abierta === s.id;
-          const hechos = s.campos.filter((c) => String(datos[c.id] || '').trim()).length;
+          const hechos = s.campos.filter((c) => String(datos[c.id] || '').trim() || (c.tipo === 'goles' && hayGoles(datos))).length;
           return (
             <View key={s.id} style={styles.seccion}>
               <TouchableOpacity style={styles.cabecera} onPress={() => setAbierta(abiertaEsta ? null : s.id)}>
@@ -79,7 +81,21 @@ export default function ScoutingScreen({ navigation, route }) {
                       {c.grupo ? <Text style={styles.grupo}>{c.grupo}</Text> : null}
                       <Text style={styles.etiqueta}>{c.etiqueta}</Text>
                       {c.ayuda ? <Text style={styles.ayuda}>{c.ayuda}</Text> : null}
-                      {c.tipo === 'opciones' ? (
+                      {c.tipo === 'goles' ? (
+                        <>
+                          <GolesRival equipo={equipo} datos={datos} onCambiar={cambiar} incrustado />
+                          <TextInput
+                            style={[styles.input, styles.inputLargo]}
+                            multiline
+                            value={datos[c.id] || ''}
+                            onChangeText={(t) => cambiar(c.id, t)}
+                            maxLength={600}
+                            placeholder="Comentario (opcional)"
+                            placeholderTextColor="#9ca3af"
+                            testID={`scout-${c.id}`}
+                          />
+                        </>
+                      ) : c.tipo === 'opciones' ? (
                         <View style={styles.chips}>
                           {c.opciones.map((o) => (
                             <TouchableOpacity key={o} style={[styles.chip, datos[c.id] === o && styles.chipActivo]} onPress={() => elegir(c.id, o)}>

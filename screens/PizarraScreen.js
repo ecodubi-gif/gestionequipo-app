@@ -13,7 +13,7 @@ import {
 import { formasTarea, pxAMetros, ventanaZona } from '../data/formas';
 import { ROLES } from '../data/tareas';
 
-const GRUPOS_ELEMENTOS = ['Conos y marcas', 'Porterías', 'Material', 'Zonas y texto'];
+const GRUPOS_ELEMENTOS = ['Balones', 'Conos y marcas', 'Porterías', 'Material', 'Zonas y texto'];
 const GIRABLES = ['porteria', 'miniporteria', 'pica', 'valla', 'escalera'];
 const ETIQUETA_ROL = { ataque: 'Ataque', defensa: 'Defensa', comodin: 'Comodín', portero: 'Portero' };
 
@@ -32,7 +32,8 @@ export default function PizarraScreen({ navigation, route }) {
   const [dibujo, setDibujo] = useState(() => {
     const guardado = normalizarDibujo(dibujoInicial);
     const l0 = tareaInicial.largo || 40; const a0 = tareaInicial.ancho || 30;
-    return guardado || nuevoDibujo({ tarea: { ...tareaInicial, largo: l0, ancho: a0 }, campo: campoEfectivo(CAMPO_POR_DEFECTO, l0, a0) });
+    // Una pizarra nueva empieza con un balón en el centro (se pueden poner más desde "Balones").
+    return guardado || anadirElemento(nuevoDibujo({ tarea: { ...tareaInicial, largo: l0, ancho: a0 }, campo: campoEfectivo(CAMPO_POR_DEFECTO, l0, a0) }), 'balon', 0.5, 0.5).dibujo;
   });
   const [enfoque, setEnfoque] = useState('zona'); // 'zona' (ampliada, para colocar con comodidad) | 'campo' (el campo entero)
   const [seleccion, setSeleccion] = useState(null);
