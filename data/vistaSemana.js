@@ -50,7 +50,7 @@ export function construirVistaSemana({ entrenos, partidos, fechasPartidos }) {
       const estado = !e.previsto ? (real ? 'solo_real' : 'sin_nada') : real ? 'comparada' : 'sin_real';
       return {
         id: e.id, tipo: e.tipo, fecha: e.fecha, hora: e.hora, md: diaRespectoPartido(e.fecha, fechasPartidos),
-        previsto: e.previsto || null, real, cmp, estado,
+        previsto: e.previsto || null, real, cmp, estado, asistencia: e.asistencia || null,
         cargaReal: cmp ? cmp.carga.real : real ? Math.round(real.minutos * real.rpe) : null,
         veredicto: cmp ? cmp.veredicto : 'sin_datos',
       };

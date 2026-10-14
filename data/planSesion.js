@@ -20,6 +20,18 @@ export const postasDe = (plantilla) => {
   return Array.isArray(v) ? v : [];
 };
 
+// El texto de los estiramientos ("Isquios con correa · cuádriceps · … · glúteo en figura 4. 25'' por postura y por lado.")
+// se enseña como lista de posturas. Si no tiene esa forma, se enseña tal cual (devuelve null).
+export function posturasEstiramiento(texto) {
+  const partes = String(texto || '').trim().split(/\s*·\s*/).filter(Boolean);
+  if (partes.length < 3) return null;
+  const ultimo = partes[partes.length - 1];
+  const m = ultimo.match(/^(.*?)\.\s+(.*)$/);
+  partes[partes.length - 1] = m ? m[1] : ultimo.replace(/\.$/, '');
+  const mayus = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+  return { posturas: partes.map((x) => mayus(x.trim())), nota: m ? m[2] : '' };
+}
+
 // Último bloque de todos los entrenos: fijo, no se rellena ni se puede quitar.
 export const BLOQUE_FINAL = { clave: 'estiramientos', titulo: 'Estiramientos', duracion: 5 };
 

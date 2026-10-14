@@ -9,6 +9,8 @@ import {
   listarPlantillasEntrenoApi,
   listarTareasApi,
   obtenerSemanasCargaApi,
+  obtenerAsistenciasApi,
+  obtenerScoutingApi,
 } from '../data/apiClient';
 import { tipoDeSesion, lunesDeLaSemana } from '../data/planSesion';
 import { construirSesion } from '../data/sesion';
@@ -17,6 +19,8 @@ import { pesosGrupos } from '../data/partidoPrevio';
 import { cargaPrevista, formatoPct } from '../data/cargaPlanificada';
 import { construirVistaSemana, COLOR_VEREDICTO, ETIQUETA_VEREDICTO } from '../data/vistaSemana';
 import { formatearFechaCorta } from '../data/fecha';
+import { compartirWhatsApp } from '../data/compartir';
+import { resumenAsistencia, proximoPartido, golesDelRival, textoResumenSemana } from '../data/resumenSemana';
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
@@ -39,6 +43,7 @@ export default function SemanaScreen({ navigation }) {
   const lunesActual = lunesDeLaSemana(hoyISO());
   const [lunes, setLunes] = useState(lunesActual);
   const [vista, setVista] = useState(null);
+  const [rival, setRival] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -60,6 +65,7 @@ export default function SemanaScreen({ navigation }) {
         deLaSemana.map(async (e) => {
           const { tipo } = tipoDeSesion(e, todos);
           const tareas = await listarTareasApi(e.id).catch(() => null);
+          const asistencia = resumenAsistencia(await obtenerAsistenciasApi(e.id).catch(() => null));
           const real = semana.entrenamientos.find((x) => x.id === e.id);
           let previsto = null;
           if (tareas && tareas.length > 0) {
@@ -73,12 +79,20 @@ export default function SemanaScreen({ navigation }) {
             id: e.id, fecha: e.fecha, hora: (e.hora || '').slice(0, 5), tipo,
             duracion_minutos: real ? real.duracion_minutos : null,
             rpe_medio: real ? real.rpe_medio : null,
-            previsto,
+            previsto, asistencia,
           };
         })
       );
       const fechasPartidos = [...semana.partidos, ...(anterior ? anterior.partidos : [])].map((p) => p.fecha.slice(0, 10));
       setVista(construirVistaSemana({ entrenos, partidos: semana.partidos, fechasPartidos }));
+      // Próximo rival y sus goles por tramos (solo tiene sentido en la semana actual).
+      try {
+        const prox = lunes === lunesDeLaSemana(hoyISO()) ? proximoPartido(partidos, hoyISO()) : null;
+        if (prox) {
+          const scouting = await obtenerScoutingApi().catch(() => ({}));
+          setRival({ nombre: prox.rival, fecha: prox.fecha, goles: golesDelRival(scouting, prox.rival) });
+        } else setRival(null);
+      } catch { setRival(null); }
     } catch (err) {
       setError(err.message || 'No se pudo cargar la semana');
     } finally {
@@ -141,6 +155,9 @@ export default function SemanaScreen({ navigation }) {
   }
 
   const { filas, partidos, escala, comparable, lectura, cargaRealSemana } = vista;
+  const compartir = () => compartirWhatsApp(textoResumenSemana({ lunes, domingo, filas, partidos, cargaRealSemana, comparable, rival }));
+  const conLista = filas.filter((f) => f.asistencia);
+  const asistMedia = conLista.length ? Math.round((conLista.reduce((s, f) => s + f.asistencia.presentes, 0) / conLista.reduce((x, f) => x + f.asistencia.total, 0)) * 100) : null;
   const ancho = (valor) => `${Math.max(2, Math.round((valor / escala) * 100))}%`;
 
   return (
@@ -149,6 +166,22 @@ export default function SemanaScreen({ navigation }) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
         {filas.length === 0 && partidos.length === 0 && (
           <Text style={styles.vacio}>No hay entrenos ni partido esta semana.</Text>
+        )}
+
+        <TouchableOpacity style={styles.botonCompartir} onPress={compartir} activeOpacity={0.85}>
+          <Text style={styles.botonCompartirTexto}>📲  Compartir el resumen de la semana</Text>
+        </TouchableOpacity>
+
+        {asistMedia !== null && (
+          <Text style={styles.pie}>Asistencia media a los entrenos con lista: {asistMedia} %</Text>
+        )}
+
+        {rival && (
+          <View style={[styles.tarjeta, { borderColor: '#ddd6fe' }]}>
+            <Text style={styles.tarjetaTitulo}>Próximo rival · {rival.nombre}</Text>
+            <Text style={styles.tarjetaDia}>{nombreDia(rival.fecha)} {formatearFechaCorta(rival.fecha).slice(0, 5)}</Text>
+            <Text style={styles.partidoDato}>{rival.goles && rival.goles.texto ? `Goles: ${rival.goles.texto}` : 'Todavía no hay goles por tramos en su informe.'}</Text>
+          </View>
         )}
 
         {comparable && (
@@ -189,6 +222,9 @@ export default function SemanaScreen({ navigation }) {
               detalle={f.previsto ? `${f.previsto.minutos}' · RPE ${f.previsto.rpe ?? '—'}` : 'Sin tareas montadas'} />
             <Barra nombre="Real" valor={f.cargaReal} ancho={f.cargaReal ? ancho(f.cargaReal) : '0%'} color={COLOR_VEREDICTO[f.veredicto === 'sin_datos' ? 'en_linea' : f.veredicto]}
               detalle={f.real ? `${f.real.minutos}' · RPE ${f.real.rpe}` : 'Sin RPE todavía'} />
+            <Text style={styles.partidoDato}>
+              {f.asistencia ? `Asistencia: ${f.asistencia.presentes}/${f.asistencia.total} (${f.asistencia.pct} %)${f.asistencia.retrasos ? ` · ${f.asistencia.retrasos} con retraso` : ''}${f.asistencia.faltas ? ` · ${f.asistencia.faltas} faltas` : ''}` : 'Sin lista de asistencia'}
+            </Text>
             {f.cmp && f.cmp.carga.pct != null && <Text style={styles.pct}>{formatoPct(f.cmp.carga.pct)} sobre lo previsto</Text>}
           </TouchableOpacity>
         ))}
@@ -236,6 +272,8 @@ function Barra({ nombre, valor, ancho, color, detalle }) {
 }
 
 const styles = StyleSheet.create({
+  botonCompartir: { backgroundColor: '#16a34a', borderRadius: 12, padding: 12, alignItems: 'center', marginBottom: 12 },
+  botonCompartirTexto: { color: '#fff', fontWeight: '700', fontSize: 14 },
   contenedor: { flex: 1, backgroundColor: '#f8fafc' },
   centrado: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   error: { color: '#dc2626', textAlign: 'center', marginBottom: 14 },

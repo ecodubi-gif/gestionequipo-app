@@ -1,6 +1,7 @@
 // La sesión completa: el orden de los bloques, cuánto dura cada cosa, a qué hora empieza,
 // y la hoja imprimible.
-import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
+import { materialDeItems, textoMaterial } from './material';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, posturasEstiramiento, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
 import { OBJETIVOS, REFERENCIAS, ROLES, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from './tareas';
 import { formatearFechaCorta } from './fecha';
 import { dibujoDeTarea } from './pizarra';
@@ -71,7 +72,7 @@ export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
   }
   // Todos los entrenos acaban con estiramientos (5 minutos), también los ya creados.
   anadir({ clave: BLOQUE_FINAL.clave, titulo: BLOQUE_FINAL.titulo, responsable: 'Entrenador / segundo', minutos: MIN_ESTIRAMIENTOS, texto: textos.estiramientos || (plantilla && plantilla.semana && plantilla.semana.estiramientos) || null });
-  return { items, total: reloj };
+  return { items, total: reloj, material: materialDeItems(items) };
 }
 
 // ---------- Hoja imprimible ----------
@@ -130,7 +131,12 @@ export function htmlSesion({ entrenamiento, tipo, sesion, jugadoresPorId, trabaj
         `<li><b>${esc(x.titulo)}.</b> <u>Físico:</u> ${esc(x.fisico)} <u>Técnico:</u> ${esc(x.tecnico)}</li>`).join('') + '</ol>';
     }
     if (it.sinPrograma) cuerpo += '<p class="tenue">Sin programa de preparación física para este tipo de entreno.</p>';
-    if (it.texto) cuerpo += `<p>${saltos(it.texto)}</p>`;
+    if (it.texto) {
+      const est = it.clave === 'estiramientos' ? posturasEstiramiento(it.texto) : null;
+      cuerpo += est
+        ? `<ol class="lista">${est.posturas.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>${est.nota ? `<p class="tenue">${esc(est.nota)}</p>` : ''}`
+        : `<p>${saltos(it.texto)}</p>`;
+    }
     if (it.aviso) cuerpo += `<p class="aviso">${esc(it.aviso)}</p>`;
     if (it.tareas) {
       cuerpo += htmlTareas(it.tareas);
@@ -150,6 +156,12 @@ export function htmlSesion({ entrenamiento, tipo, sesion, jugadoresPorId, trabaj
   const aparte = trabajoAparte.length
     ? `<section class="bloque"><div class="bloque-cab"><h3>Trabajo aparte (readaptación)</h3></div>
         <ul class="lista">${trabajoAparte.map((j) => `<li><b>${esc(nombreJugador(j))}:</b> ${esc(j.readaptacion)}</li>`).join('')}</ul></section>`
+    : '';
+
+  const material = (sesion.material || []).length
+    ? `<section class="bloque"><div class="bloque-cab"><h3>Material para sacar al campo</h3></div>
+        <ul class="lista">${sesion.material.map((m) => `<li><b>${esc(textoMaterial(m))}</b> <span class="tenue">(${esc(m.en.join(', '))})</span></li>`).join('')}</ul>
+        <p class="tenue">Cantidades según lo que dicen los textos de las estaciones y postas; si no dice número, se anota el material sin cantidad.</p></section>`
     : '';
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/><title>Sesión de entrenamiento</title>
@@ -184,6 +196,6 @@ export function htmlSesion({ entrenamiento, tipo, sesion, jugadoresPorId, trabaj
     <div>Duración<br/><b>${esc(sesion.total)} min</b></div>
     <div>Asistentes<br/><b>${asistentes === null ? '—' : esc(asistentes)}</b></div>
   </div>
-  ${bloques}${aparte}
+  ${material}${bloques}${aparte}
 </body></html>`;
 }

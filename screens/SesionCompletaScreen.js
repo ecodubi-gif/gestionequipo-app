@@ -13,7 +13,8 @@ import {
   obtenerAsistenciasApi,
   obtenerSemanasCargaApi,
 } from '../data/apiClient';
-import { tipoDeSesion, textoSeries, lunesDeLaSemana } from '../data/planSesion';
+import { tipoDeSesion, textoSeries, lunesDeLaSemana, posturasEstiramiento } from '../data/planSesion';
+import { textoMaterial } from '../data/material';
 import { cargaPrevista, compararCarga, TEXTO_VEREDICTO, formatoPct } from '../data/cargaPlanificada';
 import { construirSesion, sumarHora, htmlSesion } from '../data/sesion';
 import { cargarPartidoPrevio, minutosPorJugador } from '../data/contextoPartido';
@@ -164,6 +165,16 @@ export default function SesionCompletaScreen({ route }) {
           </View>
         )}
 
+        {(sesion.material || []).length > 0 && (
+          <View style={styles.cajaMaterial}>
+            <Text style={styles.cajaMaterialTitulo}>Material para sacar al campo</Text>
+            {sesion.material.map((m) => (
+              <Text key={m.clave} style={styles.linea}><Text style={styles.negrita}>{textoMaterial(m)}</Text> · {m.en.join(', ')}</Text>
+            ))}
+            <Text style={styles.vacio}>Cantidades según lo que dicen los textos; si no hay número, solo se anota el material.</Text>
+          </View>
+        )}
+
         {sesion.items.map((it) => (
           <View key={it.clave} style={styles.fila}>
             <View style={styles.columnaHora}>
@@ -181,7 +192,26 @@ export default function SesionCompletaScreen({ route }) {
                 <Text key={i} style={styles.linea}><Text style={styles.negrita}>{m.tiempo} {m.zona}.</Text> {m.descripcion}</Text>
               ))}
               {it.sinPrograma && <Text style={styles.vacio}>Sin programa de preparación física para este tipo de entreno.</Text>}
-              {!!it.texto && <Text style={styles.linea}>{it.texto}</Text>}
+              {!!it.postas && it.postas.length > 0 && (
+                <>
+                  <Text style={styles.vacio}>{it.postas.length} postas de 3' con rotación de 1'.</Text>
+                  {it.postas.map((x, i) => (
+                    <Text key={i} style={styles.linea}>
+                      <Text style={styles.negrita}>{i + 1}. {x.titulo}.</Text> Físico: {x.fisico}{x.tecnico ? ` Técnico: ${x.tecnico}` : ''}
+                    </Text>
+                  ))}
+                </>
+              )}
+              {!!it.texto && (() => {
+                const est = it.clave === 'estiramientos' ? posturasEstiramiento(it.texto) : null;
+                if (!est) return <Text style={styles.linea}>{it.texto}</Text>;
+                return (
+                  <>
+                    {est.posturas.map((x, i) => <Text key={i} style={styles.linea}><Text style={styles.negrita}>{i + 1}.</Text> {x}</Text>)}
+                    {!!est.nota && <Text style={styles.vacio}>{est.nota}</Text>}
+                  </>
+                );
+              })()}
               {!!it.aviso && <Text style={styles.avisoBloque}>{it.aviso}</Text>}
 
               {(it.tareas || []).map((t) => tarjetaTarea(t, campos))}
@@ -280,5 +310,7 @@ const styles = StyleSheet.create({
   cajaCargaVeredicto: { fontSize: 12, fontWeight: '700', color: '#374151', marginTop: 8 },
   cajaCargaNota: { fontSize: 10, color: '#9ca3af', marginTop: 6, lineHeight: 14 },
   cajaAparte: { backgroundColor: '#fef2f2', borderRadius: 12, borderWidth: 1, borderColor: '#fecaca', padding: 14, marginTop: 6 },
+  cajaMaterial: { backgroundColor: '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe', padding: 14, marginBottom: 12 },
+  cajaMaterialTitulo: { fontSize: 13, fontWeight: '800', color: '#1d4ed8', marginBottom: 4 },
   cajaAparteTitulo: { fontSize: 13, fontWeight: '800', color: '#dc2626', marginBottom: 4 },
 });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from 'react-native';
-import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from '../data/planSesion';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, posturasEstiramiento, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from '../data/planSesion';
 import { confirmar } from '../data/confirmar';
 import BibliotecaTareas from './BibliotecaTareas';
 import { CAMPOS_PERFIL } from '../data/semana';
@@ -412,7 +412,16 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
       <View style={styles.bloque} testID="bloque-estiramientos">
         <View style={{ flex: 1 }}>
           <Text style={styles.zona}>{BLOQUE_FINAL.titulo} · {BLOQUE_FINAL.duracion}'</Text>
-          <Text style={styles.ejercicio}>{(plantilla && semana && semana.estiramientos) || 'Última tarea de todos los entrenos'}</Text>
+          {(() => {
+            const est = posturasEstiramiento(semana && semana.estiramientos);
+            if (!est) return <Text style={styles.ejercicio}>{(semana && semana.estiramientos) || 'Última tarea de todos los entrenos'}</Text>;
+            return (
+              <>
+                {est.posturas.map((x, i) => <Text key={i} style={styles.ejercicio}>{i + 1}. {x}</Text>)}
+                {!!est.nota && <Text style={styles.grupoNota}>{est.nota}</Text>}
+              </>
+            );
+          })()}
         </View>
       </View>
 
