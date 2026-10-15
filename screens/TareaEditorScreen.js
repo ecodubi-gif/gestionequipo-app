@@ -38,6 +38,8 @@ import {
   formatoDuracion,
   ESCALA_DURACION,
   avisosTrabajo,
+  avisoDelDia,
+  OBJETIVOS_DEL_DIA,
   relacionTrabajoPausa,
   totalesTarea,
 } from '../data/tareas';
@@ -75,7 +77,9 @@ export default function TareaEditorScreen({ navigation, route }) {
   const [nombre, setNombre] = useState(tarea?.nombre || '');
   // Sin objetivo si la tarea es nueva o se hizo con la lista antigua (carga mecánica, mixta...): hay que elegirlo.
   // Una tarea nueva puede venir ya con objetivo (grupo Recuperación/Compensación del primer entreno).
-  const objetivoPrevio = OBJETIVOS[tarea?.objetivo] ? tarea.objetivo : (!tarea && OBJETIVOS[objetivoInicial] ? objetivoInicial : null);
+  // Si el día solo tiene un objetivo (Entreno 2: Fuerza; Entreno 3: Velocidad), la tarea nueva ya viene con él.
+  const unicoDelDia = !tarea && !objetivoInicial && (OBJETIVOS_DEL_DIA[contexto?.tipo] || []).length === 1 ? OBJETIVOS_DEL_DIA[contexto.tipo][0] : null;
+  const objetivoPrevio = OBJETIVOS[tarea?.objetivo] ? tarea.objetivo : (!tarea && OBJETIVOS[objetivoInicial] ? objetivoInicial : unicoDelDia);
   const [objetivo, setObjetivo] = useState(objetivoPrevio);
   const trabajoPrevio = !tarea && objetivoPrevio ? trabajoInicial(objetivoPrevio) : null;
   const [referencia, setReferencia] = useState(tarea?.referencia || 'porterias');
@@ -215,6 +219,8 @@ export default function TareaEditorScreen({ navigation, route }) {
   const apPReal = campo > 0 ? Math.round((largo * ancho) / campo) : 0;
   const rango = objetivo ? OBJETIVOS[objetivo].apP : null;
   const estadoAp = !rango ? '' : apPReal < rango[0] ? 'por debajo del rango del objetivo' : apPReal > rango[1] ? 'por encima del rango del objetivo' : 'dentro del rango del objetivo';
+
+  const avisoDia = avisoDelDia({ tipo: contexto?.tipo, objetivo });
 
   // Pulsar el objetivo que ya está elegido lo quita.
   const cambiarObjetivo = (o) => {
@@ -471,6 +477,7 @@ export default function TareaEditorScreen({ navigation, route }) {
             {campo > 0 ? `${apPReal} m² por jugador de campo (${campo} jugadores)` : 'Asigna jugadores o pon el formato para calcularlo'}
           </Text>
           {campo > 0 && !!rango && <Text style={styles.espacioRango}>{OBJETIVOS[objetivo].corto}: {rango[0]}–{rango[1]} m²/jugador · ahora {estadoAp}</Text>}
+          {!!avisoDia && <Text style={styles.aviso}>{avisoDia}</Text>}
           {calculo.avisos.map((a, i) => (
             <Text key={i} style={styles.aviso}>{a}</Text>
           ))}
@@ -526,7 +533,7 @@ export default function TareaEditorScreen({ navigation, route }) {
           ))}
 
         <Text style={styles.nota}>
-          Orientativo: el espacio por jugador es el punto de partida, no una regla. Por debajo de unos 100 m²/jugador predominan aceleraciones, frenadas y cambios de dirección; con más espacio hay más carrera. Y en Recuperación o Puesta a punto la carga la marcan sobre todo la intensidad, las series y las pausas, más que el espacio. Ajústalo a tu plantilla y a tu objetivo.
+          Orientativo: el espacio por jugador es el punto de partida, no una regla. Los avisos no impiden guardar: si se suspende un partido o hay que cambiar el plan, diseña la tarea que necesites. Por debajo de unos 100 m²/jugador predominan aceleraciones, frenadas y cambios de dirección; con más espacio hay más carrera. Para correr a máxima velocidad hace falta espacio largo (en juegos reducidos de fútbol base de élite, igualar la carrera de alta velocidad del partido pedía unos 180 m²/jugador y el sprint unos 210). Y en Recuperación o Velocidad la carga la marcan sobre todo la intensidad, las series y las pausas, más que el espacio. Ajústalo a tu plantilla y a tu objetivo.
         </Text>
 
         {/* ---------- Trabajo ---------- */}

@@ -17,7 +17,7 @@ export const BLOQUES_TAREAS = [
 // Para qué sirve la tarea en la semana. El espacio por jugador (apP, en m²) es solo el punto de partida
 // de cada objetivo: lo que de verdad marca la carga es la intensidad, las series y las pausas.
 // Los m² cuentan SOLO a los jugadores de campo (los porteros no). Los rangos salen de la matriz de
-// microciclo del cuerpo técnico (martes MD+2: 80-150; jueves MD-3: 35-75; viernes MD-1: 70-100) y
+// microciclo del cuerpo técnico (martes MD+2: 80-150, repartido entre Recuperación 100-150 y Compensación 80-120; jueves MD-3: 35-75; viernes MD-1: 70-100, ampliado a 200 para velocidad) y
 // están todos aquí, en una sola tabla, para que el preparador físico los ajuste.
 // Los rondos pequeños (3v1, 4v2: 11-16 m²) quedan por debajo de cualquier rango: es normal, son otro tipo de tarea.
 export const OBJETIVOS = {
@@ -27,7 +27,7 @@ export const OBJETIVOS = {
     trabajo: { series: [2, 3, 2], segundos: [240, 600, 600], pausa: [60, 120, 120] },
   },
   compensacion: {
-    etiqueta: 'Compensación', corto: 'Compensación', apP: [60, 100], apPInicial: 85, ajusteRatio: 0.2,
+    etiqueta: 'Compensación', corto: 'Compensación', apP: [80, 120], apPInicial: 95, ajusteRatio: 0.2,
     ayuda: 'Para quien jugó poco o nada: más volumen e intensidad en espacio medio-reducido.',
     trabajo: { series: [3, 5, 4], segundos: [120, 240, 180], pausa: [60, 120, 90] },
   },
@@ -36,12 +36,30 @@ export const OBJETIVOS = {
     ayuda: 'Espacio reducido: aceleraciones, frenadas, cambios de dirección y duelos.',
     trabajo: { series: [3, 6, 4], segundos: [45, 240, 240], pausa: [45, 120, 90] },
   },
+  // Velocidad (la clave 'puesta_a_punto' se mantiene porque ya está guardada en las tareas): víspera de partido.
+  // Para correr rápido hace falta espacio: en juegos reducidos de fútbol base de élite, igualar la carrera de alta
+  // velocidad del partido pedía unos 180 m² por jugador y el sprint unos 210, mientras que las aceleraciones y
+  // frenadas se igualaban con unos 155 (Riboli et al., 2021, Biology of Sport). Por eso el rango sube respecto al de
+  // la matriz de rondos de la víspera (70-100). El rango empieza en 70 para no dar falsos avisos en el trabajo explosivo
+  // y de frecuencia en espacio pequeño (70-100) y llega a 200 para la velocidad máxima. PROPUESTA: la valida el preparador físico.
   puesta_a_punto: {
-    etiqueta: 'Puesta a punto', corto: 'Puesta a punto', apP: [70, 100], apPInicial: 85, ajusteRatio: 0,
-    ayuda: 'Víspera de partido: trabajo corto, explosivo y con descanso casi completo, sin fatigar.',
+    etiqueta: 'Velocidad', corto: 'Velocidad', apP: [70, 200], apPInicial: 130, ajusteRatio: 0.3,
+    ayuda: 'Víspera de partido: velocidad y reactividad. Pocas repeticiones máximas, en espacio largo y con descanso casi completo, sin fatigar.',
     trabajo: { series: [3, 8, 6], segundos: [8, 90, 10], pausa: [45, 150, 90] },
   },
 };
+
+// Qué objetivos tiene cada día de la semana: Entreno 1 regenerativo y compensador, Entreno 2 fuerza, Entreno 3 velocidad.
+export const OBJETIVOS_DEL_DIA = { 1: ['recuperacion', 'compensacion'], 2: ['fuerza'], 3: ['puesta_a_punto'] };
+
+// Aviso si la tarea no es de un objetivo del día (p. ej. una tarea de Recuperación en un Entreno 2).
+export function avisoDelDia({ tipo, objetivo }) {
+  const del = OBJETIVOS_DEL_DIA[tipo];
+  if (!del || !OBJETIVOS[objetivo] || del.includes(objetivo)) return null;
+  const nombres = del.map((o) => OBJETIVOS[o].corto).join(' o ');
+  const rangos = del.map((o) => `${OBJETIVOS[o].corto} ${OBJETIVOS[o].apP[0]}-${OBJETIVOS[o].apP[1]}`).join(' · ');
+  return `En un Entreno ${tipo} lo habitual es ${nombres}; esta tarea es de ${OBJETIVOS[objetivo].corto}. Espacio esperado ese día: ${rangos} m²/jugador. Es solo un aviso: puedes guardarla igual.`;
+}
 
 // "trabajo": [mínimo, máximo, inicial] de series, minutos por serie y pausa en segundos que se proponen para
 // cada objetivo. Apoyos de la literatura sobre juegos reducidos: lo más habitual son 3-6 repeticiones (el

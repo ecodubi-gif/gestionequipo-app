@@ -160,7 +160,7 @@ export default function SesionCompletaScreen({ route }) {
               </Text>
             )}
             <Text style={styles.cajaCargaNota}>
-              Lo previsto sale del objetivo de cada tarea (Recuperación 3, Compensación 6, Fuerza 7, Puesta a punto 5 de RPE) y es una estimación inicial que valida el preparador físico.
+              Lo previsto sale del objetivo de cada tarea (Recuperación 3, Compensación 6, Fuerza 7, Velocidad 5 de RPE) y es una estimación inicial que valida el preparador físico.
             </Text>
           </View>
         )}
