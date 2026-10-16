@@ -11,6 +11,8 @@ export const MAX_ELEMENTOS = 80;
 export const TIPOS = {
   corner_of: 'Córner ofensivo', falta_of: 'Falta ofensiva', corner_def: 'Córner defensivo', falta_def: 'Falta defensiva', barrera: 'Barrera', otro: 'Otra jugada',
 };
+// En las jugadas defensivas todos los jugadores llevan su recuadro amarillo «N marca a …».
+export const ES_DEFENSIVA = (tipo) => tipo === 'corner_def' || tipo === 'falta_def' || tipo === 'barrera';
 export const ESTILOS_FLECHA = { pase: { etiqueta: 'Balón', color: '#1e3a8a', dash: null }, carrera: { etiqueta: 'Jugador', color: '#facc15', dash: '6,4' } };
 
 const redondear = (n) => Math.round(n * 1000) / 1000;
@@ -119,7 +121,7 @@ const cajaNota = (e, ancho) => {
   return { lineas, w: m.notaAncho, h: lineas.length * m.linea + 8 * m.e, x: e.x * ancho - m.notaAncho / 2, y: e.y * ancho * PROPORCION - (lineas.length * m.linea + 8 * m.e) / 2 };
 };
 
-export function formasJugada(jOriginal, { ancho = 585, asignacion = asignacionVacia(), nombres = {}, dorsales = {}, seleccion = null } = {}) {
+export function formasJugada(jOriginal, { ancho = 585, asignacion = asignacionVacia(), nombres = {}, dorsales = {}, seleccion = null, bloqueados = {} } = {}) {
   const j = conPosiciones(jOriginal, asignacion);
   const alto = Math.round(ancho * PROPORCION);
   const m = medidas(ancho);
@@ -160,12 +162,13 @@ export function formasJugada(jOriginal, { ancho = 585, asignacion = asignacionVa
     const dorsal = dorsales[asignacion.asig[e.id]];
     const numero = dorsal != null && dorsal !== '' ? String(dorsal) : String(e.n); // con jugador asignado, su dorsal
     f.push({ k: 'text', x, y: y + m.fuente * 0.36, t: numero, size: m.fuente * (numero.length > 2 ? 0.9 : 1.1), fill: '#111827', anchor: 'middle', bold: true });
+    if (bloqueados[e.id]) f.push({ k: 'text', x: x + m.radio * 0.55, y: y - m.radio * 0.55, t: '🔒', size: m.fuente * 1.1, fill: '#111827', anchor: 'middle' });
     if (nom) f.push({ k: 'text', x, y: y + m.radio + m.fuente + 1, t: nom, size: m.fuente, fill: '#ffffff', anchor: 'middle', bold: true });
     const txt = (asignacion.textos[e.id] || '').trim();
-    if (e.marca || txt) {
+    if (e.marca || txt || ES_DEFENSIVA(j.tipo)) {
       const bx = x + m.radio + 6 * m.e;
       f.push({ k: 'rect', x: bx, y: y - 11 * m.e, w: m.marcaAncho, h: 22 * m.e, rx: 3, fill: '#fffbe6', stroke: '#facc15', sw: 2 });
-      f.push({ k: 'text', x: bx + 5 * m.e, y: y + m.fuente * 0.36, t: `${numero} marca al nº ${txt || '…'}`, size: m.fuente * 0.95, fill: '#111827', anchor: 'start', bold: true });
+      f.push({ k: 'text', x: bx + 5 * m.e, y: y + m.fuente * 0.36, t: `${numero} marca a ${txt || '…'}`, size: m.fuente * 0.95, fill: '#111827', anchor: 'start', bold: true });
     }
   }
   for (const e of j.elementos.filter((x) => x.k === 'nota')) {
@@ -208,7 +211,7 @@ export function htmlJugada(j, asignacion, jugadores, { equipo = '', rival = '', 
   const lista = jugadoresDe(j).map((e) => {
     const id = asignacion.asig[e.id]; const jug = id != null ? jugadores[id] : null;
     const tx = (asignacion.textos[e.id] || '').trim();
-    const marca = e.marca || tx ? ` · marca al nº <b>${esc(tx || '—')}</b>` : '';
+    const marca = e.marca || tx || ES_DEFENSIVA(j.tipo) ? ` · marca a <b>${esc(tx || '—')}</b>` : '';
     return `<li>${jug ? `${esc(jug.dorsal != null && jug.dorsal !== '' ? `#${jug.dorsal} ` : '')}${esc(jug.nombre)}` : '<span style="color:#9ca3af">puesto ' + e.n + ' sin asignar</span>'}${marca}</li>`;
   }).join('');
   return `<div style="${saltoDePagina ? 'page-break-before: always;' : ''}font-family:-apple-system,Arial,sans-serif;padding:14px;max-width:790px;margin:auto">

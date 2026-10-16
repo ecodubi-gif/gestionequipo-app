@@ -34,6 +34,7 @@ import LesionesScreen from './screens/LesionesScreen';
 import AlineacionScreen from './screens/AlineacionScreen';
 import AbpScreen from './screens/AbpScreen';
 import MultasScreen from './screens/MultasScreen';
+import TarjetasScreen from './screens/TarjetasScreen';
 import EntrenamientoDetalleScreen from './screens/EntrenamientoDetalleScreen';
 import JugadorPublicoScreen from './screens/JugadorPublicoScreen';
 import EnlacesJugadoresScreen from './screens/EnlacesJugadoresScreen';
@@ -114,6 +115,7 @@ function AppConCuenta() {
  <Stack.Screen name="Enlaces" component={EnlacesJugadoresScreen} options={{ title: 'Enlaces de jugadores' }} />
         <Stack.Screen name="Bienestar" component={BienestarScreen} options={{ title: 'Bienestar de los jugadores' }} />
         <Stack.Screen name="Multas" component={MultasScreen} options={{ title: 'Multas' }} />
+        <Stack.Screen name="Tarjetas" component={TarjetasScreen} options={{ title: 'Tarjetas' }} />
         <Stack.Screen name="SesionCompleta" component={SesionCompletaScreen} options={{ title: 'Sesión completa' }} />
         <Stack.Screen
           name="EntrenamientoDetalle"

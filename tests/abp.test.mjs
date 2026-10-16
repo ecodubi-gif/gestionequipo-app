@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { moverAsignado, conPosiciones, numeroRival, limpiarJugada, jugadoresDe, siguienteN, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca, duplicar, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, partirTexto, formasJugada, elementoEn, htmlJugada, MAX_ELEMENTOS, TIPOS } from '../data/abp';
+import { ES_DEFENSIVA, moverAsignado, conPosiciones, numeroRival, limpiarJugada, jugadoresDe, siguienteN, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca, duplicar, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, partirTexto, formasJugada, elementoEn, htmlJugada, MAX_ELEMENTOS, TIPOS } from '../data/abp';
 let n = 0; const t = (_, f) => { f(); n++; };
 const base = { id: 1, titulo: 'Córner', tipo: 'corner_of', consigna: 'x', elementos: [
   { id: 'p1', k: 'jugador', n: 1, x: 0.5, y: 0.5 }, { id: 'p2', k: 'jugador', n: 2, x: 0.3, y: 0.3, marca: true }, { id: 'r1', k: 'rival', x: 0.7, y: 0.4 },
@@ -28,8 +28,8 @@ t('formas: las del dibujo y el tamaño', () => { const r = formasJugada(base, { 
 t('formas: dorsal, nombre y marca', () => {
   const r = formasJugada(base, { asignacion: { asig: { p1: 10, p2: 11 }, textos: { p2: '9' }, pos: {} }, nombres: { 10: 'Pepe', 11: 'Luis' }, dorsales: { 10: 7, 11: 14 } });
   const ts = r.formas.filter((f) => f.k === 'text').map((f) => f.t);
-  assert.ok(ts.includes('Pepe') && ts.includes('7') && ts.includes('14') && ts.includes('14 marca al nº 9')); assert.ok(!ts.includes('1'));
-  assert.ok(formasJugada(base).formas.some((f) => f.t === '2 marca al nº …'));
+  assert.ok(ts.includes('Pepe') && ts.includes('7') && ts.includes('14') && ts.includes('14 marca a 9')); assert.ok(!ts.includes('1'));
+  assert.ok(formasJugada(base).formas.some((f) => f.t === '2 marca a …'));
 });
 t('posiciones propias del partido', () => {
   let a = moverAsignado(asignacionVacia(), 'p1', 0.2, 2); assert.deepEqual(a.pos.p1, { x: 0.2, y: 1 });
@@ -62,7 +62,13 @@ t('rivales con número y marca a cualquier jugador', () => {
   assert.equal(numeroRival(j, 'r1', 99).elementos.find((e) => e.id === 'r1').n, 30); assert.deepEqual(numeroRival(j, 'p1', 5), j);
   assert.equal(limpiarJugada({ elementos: [{ id: 'r', k: 'rival', n: 9, x: 0, y: 0 }, { id: 's', k: 'rival', n: 99, x: 0, y: 0 }] }).elementos.map((e) => e.n).join(), '9,');
   const f = formasJugada(j, { asignacion: { asig: {}, textos: { p1: '9' } } }).formas.filter((x) => x.k === 'text').map((x) => x.t);
-  assert.ok(f.includes('1 marca al nº 9') && f.includes('7'));
-  assert.ok(htmlJugada(j, { asig: {}, textos: { p1: '9' } }, {}, {}).includes('marca al nº'));
+  assert.ok(f.includes('1 marca a 9') && f.includes('7'));
+  assert.ok(htmlJugada(j, { asig: {}, textos: { p1: '9' } }, {}, {}).includes('marca a <b>9</b>'));
+});
+t('defensivas: todos con su recuadro; ofensivas solo los marcados; candado', () => {
+  const cuenta = (j, b = {}) => formasJugada(j, { bloqueados: b }).formas.filter((f) => f.k === 'text' && / marca a /.test(f.t)).length;
+  assert.equal(cuenta({ ...base, tipo: 'corner_of' }), 1); assert.equal(cuenta({ ...base, tipo: 'corner_def' }), 2); assert.equal(cuenta({ ...base, tipo: 'barrera' }), 2); assert.equal(cuenta({ ...base, tipo: 'falta_def' }), 2);
+  assert.ok(ES_DEFENSIVA('barrera') && !ES_DEFENSIVA('falta_of'));
+  assert.ok(formasJugada(base, { bloqueados: { p1: true } }).formas.some((f) => f.t === '🔒')); assert.ok(!formasJugada(base).formas.some((f) => f.t === '🔒'));
 });
 console.log(`abp: ${n} pruebas OK`);

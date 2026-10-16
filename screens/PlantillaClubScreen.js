@@ -203,6 +203,7 @@ export default function PlantillaClubScreen({ navigation }) {
         <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
           <TouchableOpacity style={styles.atajo} onPress={() => navigation.navigate('Enlaces')}><Text style={styles.atajoTexto}>🔗 Enlaces de jugadores</Text></TouchableOpacity>
           <TouchableOpacity style={styles.atajo} onPress={() => navigation.navigate('Multas')}><Text style={styles.atajoTexto}>💶 Multas</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.atajo} onPress={() => navigation.navigate('Tarjetas')}><Text style={styles.atajoTexto}>🟨 Tarjetas</Text></TouchableOpacity>
         </View>
       )}
 

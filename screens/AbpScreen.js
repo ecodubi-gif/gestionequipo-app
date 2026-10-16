@@ -40,7 +40,10 @@ export default function AbpScreen({ route }) {
   const [sel, setSel] = useState(null);
   const [sucio, setSucio] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const arrastre = useRef(null); // { id, x0, y0, movido }
+  const arrastre = useRef(null); // { id, x0, y0, movido, bloqueado }
+  const ultimoToque = useRef({ id: null, t: 0 });
+  const [bloqueados, setBloqueados] = useState({}); // elementos fijados con doble toque: no se mueven
+  const [verTodas, setVerTodas] = useState(false);
 
   const cargar = useCallback(async () => {
     setError('');
@@ -58,7 +61,7 @@ export default function AbpScreen({ route }) {
   const asigDe = (j) => limpiarAsignacion(j ? asigs[j.id || 'nueva'] : null, j || { elementos: [] }, ids);
   const asigAbierta = abierta ? asigDe(abierta) : asignacionVacia();
 
-  const abrir = (j) => { setAbierta(j); setModo('asignar'); setSel(null); setHerramienta('sel'); setPrimerPunto(null); setSucio(false); setError(''); };
+  const abrir = (j) => { setAbierta(j); setModo('asignar'); setSel(null); setBloqueados({}); setHerramienta('sel'); setPrimerPunto(null); setSucio(false); setError(''); };
   const cerrar = () => {
     if (sucio) return confirmar('Salir sin guardar', 'Hay cambios sin guardar. ¿Salir igualmente?', () => setAbierta(null));
     setAbierta(null);
@@ -81,38 +84,38 @@ export default function AbpScreen({ route }) {
       setPrimerPunto(null); return setHerramienta('sel');
     }
     const id = elementoEn(abierta, px, py, ancho);
-    if (id) return setSel(id);
-    const el = abierta.elementos.find((x) => x.id === sel);
-    if (el && el.k !== 'flecha') cambiarJugada((j) => moverElemento(j, sel, u, v)); // tocar un hueco mueve lo seleccionado
+    setSel(id || null);
   };
 
   // Arrastrar con el dedo: en "Editar", lo que se toca (jugador, rival, balón o nota) se mueve con él.
   const alEmpezar = (e) => {
     const { locationX: px, locationY: py } = e.nativeEvent;
-    arrastre.current = { x0: px, y0: py, id: null, movido: false };
-    if (modo === 'editar' && puedeEditar && herramienta === 'sel') {
-      const id = elementoEn(abierta, px, py, ancho);
+    arrastre.current = { x0: px, y0: py, id: null, movido: false, bloqueado: false };
+    const editando = modo === 'editar' && puedeEditar && herramienta === 'sel';
+    const colocando = modo === 'asignar' && puedeEditar; // en este partido se puede colocar a cada jugador donde se quiera
+    if (editando || colocando) {
+      const id = elementoEn(abierta, px, py, ancho, colocando ? asigAbierta : null);
       const el = abierta.elementos.find((x) => x.id === id);
-      if (el && el.k !== 'flecha') { arrastre.current.id = id; setSel(id); }
-    } else if (modo === 'asignar' && puedeEditar) { // en este partido se puede colocar a cada jugador donde se quiera
-      const id = elementoEn(abierta, px, py, ancho, asigAbierta);
-      const el = abierta.elementos.find((x) => x.id === id);
-      if (el && el.k === 'jugador') { arrastre.current.id = id; setSel(id); }
+      if (el && (editando ? el.k !== 'flecha' : el.k === 'jugador')) { arrastre.current.id = id; arrastre.current.bloqueado = !!bloqueados[id]; setSel(id); }
     }
   };
   const alMover = (e) => {
     const a = arrastre.current;
-    if (!a || !a.id) return;
+    if (!a || !a.id || a.bloqueado) return;
     const { locationX: px, locationY: py } = e.nativeEvent;
     if (!a.movido && Math.hypot(px - a.x0, py - a.y0) < 5) return;
     a.movido = true;
     if (modo === 'asignar') ponerAsig((as) => moverAsignado(as, a.id, px / ancho, py / alto));
     else cambiarJugada((j) => moverElemento(j, a.id, px / ancho, py / alto));
   };
-  const alSoltar = (e) => {
+  const alSoltar = () => {
     const a = arrastre.current; arrastre.current = null;
     if (!a || a.movido) return;
-    if (a.id) return; // un toque sobre algo ya lo dejó seleccionado
+    if (a.id) { // dos toques seguidos sobre algo lo fijan (deja de moverse) o lo sueltan
+      const ahora = Date.now(); const u = ultimoToque.current;
+      if (u.id === a.id && ahora - u.t < 450) { setBloqueados((b) => ({ ...b, [a.id]: !b[a.id] })); ultimoToque.current = { id: null, t: 0 }; } else ultimoToque.current = { id: a.id, t: ahora };
+      return;
+    }
     tocarEn(a.x0, a.y0);
   };
 
@@ -143,6 +146,26 @@ export default function AbpScreen({ route }) {
 
   if (cargando) return <ActivityIndicator style={{ marginTop: 40 }} />;
 
+  if (verTodas && !abierta) {
+    return (
+      <ScrollView style={styles.contenedor} contentContainerStyle={{ padding: 16, paddingBottom: 80, alignItems: 'center' }}>
+        <View style={{ width: ancho }}>
+          <TouchableOpacity onPress={() => setVerTodas(false)}><Text style={styles.volver}>‹ Volver a la lista</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.botonNegro, { alignSelf: 'stretch', marginBottom: 12 }]} onPress={() => imprimir(jugadas)}><Text style={styles.botonTexto}>🖨️ Imprimir todas ({jugadas.length})</Text></TouchableOpacity>
+        </View>
+        {jugadas.map((j) => (
+          <View key={j.id} style={{ width: ancho, marginBottom: 18 }}>
+            <Text style={styles.titulo}>{j.titulo}</Text>
+            {!!j.consigna && <Text style={styles.ayuda}>Consigna: {j.consigna}</Text>}
+            <View pointerEvents="none" style={{ borderRadius: 8, overflow: 'hidden' }}>
+              <DibujoSvg res={formasJugada(j, { ancho, asignacion: asigDe(j), nombres, dorsales })} />
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    );
+  }
+
   if (!abierta) {
     return (
       <ScrollView style={styles.contenedor} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
@@ -160,6 +183,7 @@ export default function AbpScreen({ route }) {
         })}
         {jugadas.length === 0 && <Text style={styles.ayuda}>Todavía no hay jugadas.</Text>}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+          {jugadas.length > 0 && <TouchableOpacity style={styles.botonVerde} onPress={() => setVerTodas(true)}><Text style={styles.botonTexto}>👁 Ver todas juntas</Text></TouchableOpacity>}
           {jugadas.length > 0 && <TouchableOpacity style={styles.botonNegro} onPress={() => imprimir(jugadas)}><Text style={styles.botonTexto}>🖨️ Imprimir todas</Text></TouchableOpacity>}
           {puedeEditar && <TouchableOpacity style={styles.botonVerde} onPress={() => { abrir(nuevaJugada()); setModo('editar'); setSucio(true); }}><Text style={styles.botonTexto}>＋ Nueva jugada</Text></TouchableOpacity>}
         </View>
@@ -167,7 +191,7 @@ export default function AbpScreen({ route }) {
     );
   }
 
-  const res = formasJugada(abierta, { ancho, asignacion: asigAbierta, nombres, dorsales, seleccion: sel });
+  const res = formasJugada(abierta, { ancho, asignacion: asigAbierta, nombres, dorsales, seleccion: sel, bloqueados });
   const elSel = abierta.elementos.find((x) => x.id === sel);
   const usados = new Set(Object.values(asigAbierta.asig));
   return (
@@ -212,7 +236,7 @@ export default function AbpScreen({ route }) {
         )}
         {modo === 'editar' && puedeEditar && (
           <Text style={styles.ayuda}>
-            {herramienta === 'sel' ? 'Arrastra cualquier jugador, rival, balón o nota para colocarlo. Toca para seleccionarlo y cambiar sus opciones.'
+            {herramienta === 'sel' ? 'Arrastra cualquier jugador, rival, balón o nota para colocarlo. Toca para seleccionarlo; dos toques seguidos lo fijan (🔒) y deja de moverse, otros dos lo sueltan.'
               : (herramienta === 'pase' || herramienta === 'carrera') ? (primerPunto ? 'Toca dónde termina la flecha.' : 'Toca dónde empieza la flecha.') : 'Toca el campo para colocarlo.'}
           </Text>
         )}
@@ -229,7 +253,7 @@ export default function AbpScreen({ route }) {
       <View style={{ width: ancho, marginTop: 10 }}>
         {modo === 'asignar' && (
           <>
-            {!elSel && <Text style={styles.ayuda}>Toca un círculo y elige quién lo ocupa. Arrástralo para colocarlo donde quieras en este partido.</Text>}
+            {!elSel && <Text style={styles.ayuda}>Toca un círculo y elige quién lo ocupa. Arrástralo para colocarlo en este partido; dos toques seguidos lo fijan (🔒) y otros dos lo sueltan.</Text>}
             {elSel && elSel.k === 'jugador' && (
               <View style={styles.panel}>
                 <Text style={styles.panelTitulo}>Número {elSel.n}{asigAbierta.asig[elSel.id] ? ` · ${nombres[asigAbierta.asig[elSel.id]]}` : ''}</Text>
