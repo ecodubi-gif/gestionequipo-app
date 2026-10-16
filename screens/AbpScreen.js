@@ -6,7 +6,7 @@ import { confirmar } from '../data/confirmar';
 import { generarDocumento } from '../data/compartir';
 import {
   obtenerPartidoApi, obtenerConvocatoriaApi, obtenerUsuario, listarJugadasAbpApi, guardarJugadaAbpApi, borrarJugadaAbpApi,
-  obtenerAsignacionesAbpApi, guardarAsignacionAbpApi,
+  obtenerAsignacionesAbpApi, guardarAsignacionAbpApi, listarPartidosApi,
 } from '../data/apiClient';
 import {
   TIPOS, ESTILOS_FLECHA, PROPORCION, limpiarJugada, jugadoresDe, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca,
@@ -44,6 +44,8 @@ export default function AbpScreen({ route }) {
   const ultimoToque = useRef({ id: null, t: 0 });
   const [bloqueados, setBloqueados] = useState({}); // elementos fijados con doble toque: no se mueven
   const [verTodas, setVerTodas] = useState(false);
+  const [otrosPartidos, setOtrosPartidos] = useState(null); // lista para copiar las asignaciones de otro partido
+  const [copiando, setCopiando] = useState(false);
 
   const cargar = useCallback(async () => {
     setError('');
@@ -140,6 +142,25 @@ export default function AbpScreen({ route }) {
     try { if (abierta.id) await borrarJugadaAbpApi(abierta.id); setJugadas((js) => js.filter((x) => x.id !== abierta.id)); setAbierta(null); setSucio(false); } catch (e) { setError(e.message || 'No se pudo borrar'); }
   });
 
+  const abrirCopiar = async () => {
+    setError('');
+    try { const ps = await listarPartidosApi(); setOtrosPartidos(ps.filter((p) => String(p.id) !== String(partidoId) && !/^PRUEBA/i.test(p.equipo_local || '')).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha))).slice(0, 12)); } catch (e) { setError(e.message || 'No se pudieron cargar los partidos'); }
+  };
+  // Copia quién ocupa cada puesto (solo si también está convocado en este partido), los rivales a marcar y las posiciones.
+  const copiarDe = (origen) => confirmar('Copiar balón parado', `Se sustituirán las asignaciones de este partido por las de ${origen.equipo_local} vs ${origen.equipo_visitante}. Solo pasan los jugadores que también están convocados aquí.`, async () => {
+    setCopiando(true); setError('');
+    try {
+      const previas = await obtenerAsignacionesAbpApi(origen.id);
+      const nuevas = {};
+      for (const j of jugadas) {
+        const a = limpiarAsignacion(previas[j.id], j, ids);
+        nuevas[j.id] = await guardarAsignacionAbpApi(partidoId, j.id, a);
+      }
+      setAsigs((x) => ({ ...x, ...Object.fromEntries(Object.entries(nuevas).map(([k, r]) => [k, { asig: r.asig || {}, textos: r.textos || {}, pos: r.pos || {} }])) }));
+      setOtrosPartidos(null);
+    } catch (e) { setError(e.message || 'No se pudo copiar'); } finally { setCopiando(false); }
+  }, 'Copiar');
+
   const datosImpresion = () => Object.fromEntries(convocados.map((j) => [j.id, { dorsal: j.dorsal, nombre: corto(j) }]));
   const cabecera = { equipo: partido?.equipo_local || '', rival: partido?.equipo_visitante || '' };
   const imprimir = (lista) => generarDocumento(lista.map((j, i) => htmlJugada(j, asigDe(j), datosImpresion(), cabecera, i > 0)).join(''), 'el balón parado');
@@ -182,9 +203,23 @@ export default function AbpScreen({ route }) {
           );
         })}
         {jugadas.length === 0 && <Text style={styles.ayuda}>Todavía no hay jugadas.</Text>}
+        {otrosPartidos && (
+          <View style={styles.panel}>
+            <Text style={styles.panelTitulo}>¿De qué partido copiamos?</Text>
+            {otrosPartidos.length === 0 && <Text style={styles.ayuda}>No hay otros partidos.</Text>}
+            {otrosPartidos.map((p) => (
+              <TouchableOpacity key={p.id} style={styles.tarjeta} onPress={() => copiarDe(p)}>
+                <Text style={styles.tarjetaTitulo}>{p.equipo_local} vs {p.equipo_visitante}</Text>
+                <Text style={styles.tarjetaSub}>{String(p.fecha || '').slice(0, 10)}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.botonGris} onPress={() => setOtrosPartidos(null)}><Text style={styles.botonGrisTexto}>Cancelar</Text></TouchableOpacity>
+          </View>
+        )}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
           {jugadas.length > 0 && <TouchableOpacity style={styles.botonVerde} onPress={() => setVerTodas(true)}><Text style={styles.botonTexto}>👁 Ver todas juntas</Text></TouchableOpacity>}
           {jugadas.length > 0 && <TouchableOpacity style={styles.botonNegro} onPress={() => imprimir(jugadas)}><Text style={styles.botonTexto}>🖨️ Imprimir todas</Text></TouchableOpacity>}
+          {puedeEditar && jugadas.length > 0 && <TouchableOpacity style={styles.botonGris} onPress={abrirCopiar} disabled={copiando}><Text style={styles.botonGrisTexto}>{copiando ? 'Copiando…' : '⎘ Copiar de otro partido'}</Text></TouchableOpacity>}
           {puedeEditar && <TouchableOpacity style={styles.botonVerde} onPress={() => { abrir(nuevaJugada()); setModo('editar'); setSucio(true); }}><Text style={styles.botonTexto}>＋ Nueva jugada</Text></TouchableOpacity>}
         </View>
       </ScrollView>

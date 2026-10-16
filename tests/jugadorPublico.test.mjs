@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { urlJugador, tokenDeBusqueda, textoEnlace, alertasBienestar, resumenBienestar, previoDeAviso, contarAvisos, textoAviso, textoGrupoConvocatoria, nombreDiaISO } from '../data/jugadorPublico';
+import { urlJugador, tokenDeBusqueda, textoEnlace, alertasBienestar, resumenBienestar, previoDeAviso, contarAvisos, textoAviso, textoGrupoConvocatoria, nombreDiaISO, textoRecordatorioEntreno } from '../data/jugadorPublico';
 let n = 0; const t = (_, f) => { f(); n++; };
 const tok = 'a'.repeat(40);
 t('url', () => { assert.equal(urlJugador('https://app.ecodubi.com/', tok), `https://app.ecodubi.com/?j=${tok}`); });
@@ -54,5 +54,12 @@ t('texto del grupo', () => {
   assert.ok(!/https?:/.test(g), 'sin enlaces');
   const l = textoGrupoConvocatoria({ fecha: '2026-10-18', es_local: 1, equipo_local: 'Herrera', equipo_visitante: 'Otro', hora_citacion: null, lugar_citacion: null });
   assert.match(l, /vs Otro/); assert.ok(!/Concentración/.test(l));
+});
+t('recordatorio de entreno', () => {
+  const js = [{ id: 1, nombre: 'Pedro', apodo: 'Pepe' }, { id: 2, nombre: 'Luis' }, { id: 3, nombre: 'Ana' }, { id: 4, nombre: 'Jose' }];
+  const r = textoRecordatorioEntreno({ fecha: '2026-10-20', hora: '20:30:00', lugar: 'Juan Benjumea' }, js, { 1: { respuesta: 'voy' }, 3: { respuesta: 'duda' } });
+  assert.match(r, /martes 20\/10 \(20:30 en Juan Benjumea\)/); assert.match(r, /Faltan por confirmar: Luis, Jose\./); assert.match(r, /Con dudas: Ana\./); assert.ok(!/Pepe/.test(r)); assert.ok(!/http/.test(r));
+  assert.equal(textoRecordatorioEntreno({ fecha: '2026-10-20' }, js, { 1: { respuesta: 'voy' }, 2: { respuesta: 'no_voy' }, 3: { respuesta: 'voy' }, 4: { respuesta: 'voy' } }), '');
+  assert.ok(!/Con dudas/.test(textoRecordatorioEntreno({ fecha: '2026-10-20' }, js, {})));
 });
 console.log(`jugadorPublico: ${n} pruebas OK`);

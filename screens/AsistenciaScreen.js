@@ -25,7 +25,7 @@ import {
 } from '../data/apiClient';
 import { compartirWhatsApp, generarDocumento } from '../data/compartir';
 import { formatearFechaCorta } from '../data/fecha';
-import { previoDeAviso, contarAvisos, textoAviso } from '../data/jugadorPublico';
+import { previoDeAviso, contarAvisos, textoAviso, textoRecordatorioEntreno } from '../data/jugadorPublico';
 import { MOTIVOS_JUSTIFICADA, MAX_DETALLE, parsearMotivo, componerMotivo } from '../data/motivoAsistencia';
 
 // Pasar lista y multas: entrenador, segundo entrenador y delegado.
@@ -205,6 +205,11 @@ export default function AsistenciaScreen({ route, navigation }) {
         const c = contarAvisos(avisos, plantilla.map((j) => j.id));
         return <Text style={styles.resumenAvisos}>📱 Según los jugadores: {c.voy} van · {c.no_voy} no van · {c.duda} con dudas · {c.sin} sin contestar</Text>;
       })()}
+      {!!usuario && ['delegado', 'entrenador', 'segundo_entrenador'].includes(usuario.role) && !!textoRecordatorioEntreno(entrenamiento, plantilla, avisos) && (
+        <TouchableOpacity style={styles.botonRecordar} onPress={() => compartirWhatsApp(textoRecordatorioEntreno(entrenamiento, plantilla, avisos))}>
+          <Text style={styles.botonRecordarTexto}>💬 Recordar por WhatsApp a quien falta por confirmar</Text>
+        </TouchableOpacity>
+      )}
 
       {totalMultas > 0 && (
         <View style={styles.cajaTotal}>
@@ -467,6 +472,8 @@ const styles = StyleSheet.create({
   vacio: { textAlign: 'center', color: '#9ca3af', marginTop: 30 },
   tarjetaJugador: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 10 },
   avisoJugador: { fontSize: 12, color: '#6b7280', marginTop: -6, marginBottom: 8 },
+  botonRecordar: { backgroundColor: '#16a34a', borderRadius: 10, padding: 11, alignItems: 'center', marginHorizontal: 16, marginBottom: 10 },
+  botonRecordarTexto: { color: '#fff', fontWeight: '800', fontSize: 13 },
   resumenAvisos: { fontSize: 13, color: '#374151', backgroundColor: '#f3f4f6', borderRadius: 10, padding: 10, marginBottom: 10 },
   nombreJugador: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 10 },
   filaBotones: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

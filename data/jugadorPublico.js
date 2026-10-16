@@ -84,3 +84,19 @@ export function contarAvisos(avisos, jugadoresIds) {
   }
   return c;
 }
+
+// Recordatorio para el GRUPO de WhatsApp: quién falta por confirmar el entreno (nombres de pila/apodos, sin enlaces).
+export function textoRecordatorioEntreno(entrenamiento, jugadores, avisos) {
+  const nombre = (j) => j.apodo || j.nombre;
+  const sin = jugadores.filter((j) => !(avisos[j.id] && avisos[j.id].respuesta)).map(nombre);
+  const dudas = jugadores.filter((j) => avisos[j.id] && avisos[j.id].respuesta === 'duda').map(nombre);
+  if (!sin.length && !dudas.length) return '';
+  const fecha = String(entrenamiento.fecha || '').slice(0, 10);
+  const cita = [entrenamiento.hora ? String(entrenamiento.hora).slice(0, 5) : null, entrenamiento.lugar].filter(Boolean).join(' en ');
+  return [
+    `⏰ Entreno del ${nombreDiaISO(fecha)} ${ddmm(fecha)}${cita ? ` (${cita})` : ''}.`,
+    sin.length ? `Faltan por confirmar: ${sin.join(', ')}.` : null,
+    dudas.length ? `Con dudas: ${dudas.join(', ')}.` : null,
+    'Entrad en vuestro enlace personal y marcad Voy / No voy. Quien no tenga el enlace, que se lo pida al delegado.',
+  ].filter(Boolean).join('\n');
+}

@@ -535,3 +535,22 @@ export async function guardarAsignacionAbpApi(partidoId, jugadaId, asignacion) {
   const { data } = await peticion('PUT', `/partidos/${partidoId}/abp/${jugadaId}`, { asig: asignacion.asig, textos: asignacion.textos, pos: asignacion.pos || {} });
   return data;
 }
+
+// --- Tarjetas: ajustes manuales (anteriores a la app, correcciones de acta y sanciones con fecha) ---
+export async function listarAjustesTarjetasApi() {
+  const { data } = await peticion('GET', '/tarjetas/ajustes');
+  return data || [];
+}
+export async function crearAjusteTarjetaApi(ajuste) {
+  const { data } = await peticion('POST', '/tarjetas/ajustes', ajuste);
+  return data;
+}
+export const borrarAjusteTarjetaApi = (id) => peticion('DELETE', `/tarjetas/ajustes/${id}`);
+
+// Todo lo necesario para calcular tarjetas: partidos jugados, sus eventos y los ajustes (si el servidor aún no los tiene, vacío).
+export async function cargarDatosTarjetasApi() {
+  const [ps, ajustes] = await Promise.all([listarPartidosApi(), listarAjustesTarjetasApi().catch(() => [])]);
+  const jugados = ps.filter((p) => p.estado === 'en_curso' || p.estado === 'finalizado');
+  const lista = await Promise.all(jugados.map((p) => listarEventosApi(p.id).catch(() => [])));
+  return { todos: ps, partidos: jugados, eventos: Object.fromEntries(jugados.map((p, i) => [p.id, lista[i]])), ajustes };
+}

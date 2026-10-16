@@ -9,7 +9,9 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { listarJugadoresApi, obtenerConvocatoriaApi, guardarConvocatoriaApi, estadoPublicacionApi, obtenerNoDisponiblesApi, publicarConvocatoriaApi, retirarConvocatoriaApi, obtenerPartidoApi, obtenerUsuario } from '../data/apiClient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { estadoParaPartido, CICLO_POR_DEFECTO, CICLOS_POSIBLES } from '../data/tarjetas';
+import { listarJugadoresApi, obtenerConvocatoriaApi, guardarConvocatoriaApi, estadoPublicacionApi, obtenerNoDisponiblesApi, cargarDatosTarjetasApi, publicarConvocatoriaApi, retirarConvocatoriaApi, obtenerPartidoApi, obtenerUsuario } from '../data/apiClient';
 import { compartirWhatsApp } from '../data/compartir';
 import { textoGrupoConvocatoria } from '../data/jugadorPublico';
 import { diferenciasConvocatoria, resumenCambios, titularesDe, suplentesDe } from '../data/convocatoria';
@@ -31,6 +33,7 @@ export default function PlantillaScreen({ route, navigation }) {
   const [publicacion, setPublicacion] = useState(null); // { publicada, vistos, convocados } o null si no se puede gestionar
   const [partido, setPartido] = useState(null);
   const [noDisponibles, setNoDisponibles] = useState([]);
+  const [tarjetas, setTarjetas] = useState({}); // { [jugadorId]: { sancionado, motivo, apercibido } } para este partido
 
   const cargar = useCallback(async () => {
     setError('');
@@ -41,6 +44,10 @@ export default function PlantillaScreen({ route, navigation }) {
       ]);
       setPlantilla(jugadores);
       obtenerNoDisponiblesApi().then(setNoDisponibles).catch(() => setNoDisponibles([]));
+      // Apercibidos y sancionados para este partido (solo es un aviso; no impide convocar).
+      Promise.all([cargarDatosTarjetasApi(), obtenerPartidoApi(partidoId), AsyncStorage.getItem('@ciclo_amarillas').catch(() => null)])
+        .then(([datos, par, c]) => { const ciclo = CICLOS_POSIBLES.includes(Number(c)) ? Number(c) : CICLO_POR_DEFECTO; setTarjetas(estadoParaPartido(par, datos.todos, datos.eventos, datos.ajustes, ciclo)); })
+        .catch(() => setTarjetas({}));
       try {
         const [u, pub, par] = await Promise.all([obtenerUsuario(), estadoPublicacionApi(partidoId), obtenerPartidoApi(partidoId)]);
         setPublicacion(['entrenador', 'segundo_entrenador'].includes(u?.role) ? pub : null);
@@ -188,6 +195,8 @@ export default function PlantillaScreen({ route, navigation }) {
                     {j.nombre} {j.apellidos}
                   </Text>
                   <Text style={styles.posicionJugador}>{textoPosiciones(j)}</Text>
+                  {!!tarjetas[j.id] && tarjetas[j.id].sancionado && <Text style={[styles.avisoJugador, { color: '#dc2626', fontWeight: '700' }]}>⛔ Sancionado: {tarjetas[j.id].motivo}</Text>}
+                  {!!tarjetas[j.id] && tarjetas[j.id].apercibido && <Text style={[styles.avisoJugador, { color: '#b45309', fontWeight: '700' }]}>🟨 Apercibido: una amarilla más cumple ciclo</Text>}
                   {noDisponibles.includes(j.id) && <Text style={[styles.avisoJugador, { color: '#dc2626', fontWeight: '700' }]}>🩹 No disponible</Text>}
                   {!!j.readaptacion && <Text style={styles.avisoJugador}>🩹 Readaptación: {j.readaptacion}</Text>}
                   {['lesionado', 'sancionado'].includes((j.estado || '').toLowerCase()) && (
