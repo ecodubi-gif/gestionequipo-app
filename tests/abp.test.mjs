@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { limpiarJugada, jugadoresDe, siguienteN, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca, duplicar, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, partirTexto, formasJugada, elementoEn, htmlJugada, MAX_ELEMENTOS, TIPOS } from '../data/abp';
+import { numeroRival, limpiarJugada, jugadoresDe, siguienteN, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca, duplicar, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, partirTexto, formasJugada, elementoEn, htmlJugada, MAX_ELEMENTOS, TIPOS } from '../data/abp';
 let n = 0; const t = (_, f) => { f(); n++; };
 const base = { id: 1, titulo: 'Córner', tipo: 'corner_of', consigna: 'x', elementos: [
   { id: 'p1', k: 'jugador', n: 1, x: 0.5, y: 0.5 }, { id: 'p2', k: 'jugador', n: 2, x: 0.3, y: 0.3, marca: true }, { id: 'r1', k: 'rival', x: 0.7, y: 0.4 },
@@ -43,5 +43,14 @@ t('las 9 jugadas de partida son válidas', () => {
   assert.equal(semilla.length, 9);
   for (const s of semilla) { const j = limpiarJugada(s); assert.ok(j, s.titulo); assert.equal(j.elementos.length, s.elementos.length, s.titulo); assert.ok(TIPOS[s.tipo], s.titulo); assert.ok(jugadoresDe(j).length >= 10, s.titulo); const f = formasJugada(j, { ancho: 585 }); assert.ok(f.formas.length > 30); }
   assert.equal(semilla.filter((s) => s.elementos.some((e) => e.marca)).length, 2);
+});
+t('rivales con número y marca a cualquier jugador', () => {
+  let j = anadirElemento(base, 'rival', { x: 0.2, y: 0.2, n: 9 }); assert.equal(j.elementos.at(-1).n, 9);
+  j = numeroRival(j, 'r1', 7); assert.equal(j.elementos.find((e) => e.id === 'r1').n, 7); assert.equal(numeroRival(j, 'r1', null).elementos.find((e) => e.id === 'r1').n, undefined);
+  assert.equal(numeroRival(j, 'r1', 99).elementos.find((e) => e.id === 'r1').n, 30); assert.deepEqual(numeroRival(j, 'p1', 5), j);
+  assert.equal(limpiarJugada({ elementos: [{ id: 'r', k: 'rival', n: 9, x: 0, y: 0 }, { id: 's', k: 'rival', n: 99, x: 0, y: 0 }] }).elementos.map((e) => e.n).join(), '9,');
+  const f = formasJugada(j, { asignacion: { asig: {}, textos: { p1: '9' } } }).formas.filter((x) => x.k === 'text').map((x) => x.t);
+  assert.ok(f.includes('Marca al nº 9') && f.includes('7'));
+  assert.ok(htmlJugada(j, { asig: {}, textos: { p1: '9' } }, {}, {}).includes('marca al nº'));
 });
 console.log(`abp: ${n} pruebas OK`);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { SISTEMAS, sistemaValido, lineasDe, huecosDeSistema, etiquetasSistema, gruposSistema, rellenarHuecos, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco, cambiosEntre, frasesDeCambios, limpiarMomentos, htmlMomento } from '../data/alineacion';
 let n = 0; const t = (_, f) => { f(); n++; };
-t('los 10 sistemas suman 11 con el portero', () => { assert.equal(SISTEMAS.length, 10); for (const s of SISTEMAS) { assert.ok(sistemaValido(s), s); assert.equal(huecosDeSistema(s).length, 11, s); assert.equal(etiquetasSistema(s).length, 11, s); assert.equal(gruposSistema(s).length, 11, s); } });
+t('los 15 sistemas suman 11 con el portero', () => { assert.equal(SISTEMAS.length, 15); for (const s of SISTEMAS) { assert.ok(sistemaValido(s), s); assert.equal(huecosDeSistema(s).length, 11, s); assert.equal(etiquetasSistema(s).length, 11, s); assert.equal(gruposSistema(s).length, 11, s); } });
 t('sistemas inválidos', () => { for (const s of ['', '4-4', '4-4-3', '9', '4-4-2-1-1-1', '0-5-5']) assert.ok(!sistemaValido(s), s); });
 t('portero abajo y centrado; ataque arriba', () => { const h = huecosDeSistema('4-3-3'); assert.deepEqual([h[0].x, h[0].y], [0.5, 0.92]); assert.ok(h[10].y < h[5].y && h[5].y < h[1].y); assert.ok(h.every((p) => p.x >= 0.1 && p.x <= 0.9 && p.y > 0 && p.y < 1)); });
 t('etiquetas', () => {
@@ -54,5 +54,10 @@ t('html: marca entradas y escapa texto', () => {
   assert.ok(h.includes('#16a34a') && h.includes('Entra Pep&lt;e&gt;') && h.includes('Cambio &lt;60&gt;') && h.includes('page-break-before'));
   assert.ok(!h.includes('Pep<e>'));
   assert.ok(htmlMomento(m0, null, js).includes('11 inicial'));
+});
+t('sistemas de la lámina: etiquetas con sentido y laterales a los lados', () => {
+  for (const s of ['4-4-2', '4-2-3-1', '5-4-1', '5-2-1-2', '5-3-2']) { const h = huecosDeSistema(s); const e = etiquetasSistema(s); assert.equal(new Set(h.map((p) => `${p.x},${p.y}`)).size, 11, s); assert.equal(e[0], 'POR'); }
+  const h = huecosDeSistema('4-4-2'); assert.ok(h[1].x < h[2].x && h[2].x < h[3].x && h[3].x < h[4].x);
+  assert.equal(etiquetasSistema('5-2-1-2').join(), 'POR,CAI,DFC,DFC,DFC,CAD,MCD,MCD,MP,DC,DC');
 });
 console.log(`alineacion: ${n} pruebas OK`);

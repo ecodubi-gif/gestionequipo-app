@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DibujoSvg from '../components/DibujoSvg';
 import { confirmar } from '../data/confirmar';
@@ -10,7 +10,7 @@ import {
 } from '../data/apiClient';
 import {
   TIPOS, ESTILOS_FLECHA, PROPORCION, limpiarJugada, jugadoresDe, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca,
-  duplicar, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, formasJugada, elementoEn, htmlJugada,
+  duplicar, numeroRival, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, formasJugada, elementoEn, htmlJugada,
 } from '../data/abp';
 
 const HERRAMIENTAS = [
@@ -40,6 +40,7 @@ export default function AbpScreen({ route }) {
   const [sel, setSel] = useState(null);
   const [sucio, setSucio] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const arrastre = useRef(null); // { id, x0, y0, movido }
 
   const cargar = useCallback(async () => {
     setError('');
@@ -63,8 +64,7 @@ export default function AbpScreen({ route }) {
   };
   const cambiarJugada = (f) => { setAbierta((j) => f(j)); setSucio(true); };
 
-  const tocar = (e) => {
-    const { locationX: px, locationY: py } = e.nativeEvent;
+  const tocarEn = (px, py) => {
     const u = px / ancho; const v = py / alto;
     if (modo === 'asignar') {
       const id = elementoEn(abierta, px, py, ancho);
@@ -83,6 +83,31 @@ export default function AbpScreen({ route }) {
     if (id) return setSel(id);
     const el = abierta.elementos.find((x) => x.id === sel);
     if (el && el.k !== 'flecha') cambiarJugada((j) => moverElemento(j, sel, u, v)); // tocar un hueco mueve lo seleccionado
+  };
+
+  // Arrastrar con el dedo: en "Editar", lo que se toca (jugador, rival, balón o nota) se mueve con él.
+  const alEmpezar = (e) => {
+    const { locationX: px, locationY: py } = e.nativeEvent;
+    arrastre.current = { x0: px, y0: py, id: null, movido: false };
+    if (modo === 'editar' && puedeEditar && herramienta === 'sel') {
+      const id = elementoEn(abierta, px, py, ancho);
+      const el = abierta.elementos.find((x) => x.id === id);
+      if (el && el.k !== 'flecha') { arrastre.current.id = id; setSel(id); }
+    }
+  };
+  const alMover = (e) => {
+    const a = arrastre.current;
+    if (!a || !a.id) return;
+    const { locationX: px, locationY: py } = e.nativeEvent;
+    if (!a.movido && Math.hypot(px - a.x0, py - a.y0) < 5) return;
+    a.movido = true;
+    cambiarJugada((j) => moverElemento(j, a.id, px / ancho, py / alto));
+  };
+  const alSoltar = (e) => {
+    const a = arrastre.current; arrastre.current = null;
+    if (!a || a.movido) return;
+    if (a.id) return; // un toque sobre algo ya lo dejó seleccionado
+    tocarEn(a.x0, a.y0);
   };
 
   const guardarDibujo = async () => {
@@ -181,15 +206,19 @@ export default function AbpScreen({ route }) {
         )}
         {modo === 'editar' && puedeEditar && (
           <Text style={styles.ayuda}>
-            {herramienta === 'sel' ? (sel ? 'Toca otro punto del campo para mover lo seleccionado.' : 'Toca algo para seleccionarlo.')
+            {herramienta === 'sel' ? 'Arrastra cualquier jugador, rival, balón o nota para colocarlo. Toca para seleccionarlo y cambiar sus opciones.'
               : (herramienta === 'pase' || herramienta === 'carrera') ? (primerPunto ? 'Toca dónde termina la flecha.' : 'Toca dónde empieza la flecha.') : 'Toca el campo para colocarlo.'}
           </Text>
         )}
       </View>
 
-      <Pressable onPress={tocar} style={{ width: ancho, height: alto, borderRadius: 8, overflow: 'hidden' }}>
+      <View
+        onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}
+        onResponderGrant={alEmpezar} onResponderMove={alMover} onResponderRelease={alSoltar} onResponderTerminate={() => { arrastre.current = null; }}
+        style={{ width: ancho, height: alto, borderRadius: 8, overflow: 'hidden', touchAction: 'none', userSelect: 'none' }}
+      >
         <View pointerEvents="none"><DibujoSvg res={res} /></View>
-      </Pressable>
+      </View>
 
       <View style={{ width: ancho, marginTop: 10 }}>
         {modo === 'asignar' && (
@@ -208,9 +237,15 @@ export default function AbpScreen({ route }) {
                       ))}
                       <TouchableOpacity style={styles.chip} onPress={() => ponerAsig((a) => asignar(a, elSel.id, null))}><Text style={styles.chipTexto}>Quitar</Text></TouchableOpacity>
                     </View>
-                    {elSel.marca && (
-                      <TextInput style={styles.input} placeholder="Marca a… (p. ej. el 9 rival)" value={asigAbierta.textos[elSel.id] || ''} maxLength={60} onChangeText={(t) => ponerAsig((a) => ponerTexto(a, elSel.id, t))} />
-                    )}
+                    <Text style={styles.panelTitulo}>¿A quién marca? (número del rival)</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                      {Array.from({ length: 11 }, (_, i) => String(i + 1)).map((n) => (
+                        <TouchableOpacity key={n} style={[styles.chipNum, asigAbierta.textos[elSel.id] === n && styles.chipActivo]} onPress={() => ponerAsig((a) => ponerTexto(a, elSel.id, asigAbierta.textos[elSel.id] === n ? '' : n))}>
+                          <Text style={[styles.chipTexto, asigAbierta.textos[elSel.id] === n && { color: '#fff' }]}>{n}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <TextInput style={styles.input} placeholder="…o escribe (p. ej. el 9, el lateral izquierdo)" value={asigAbierta.textos[elSel.id] || ''} maxLength={60} onChangeText={(t) => ponerAsig((a) => ponerTexto(a, elSel.id, t))} />
                   </>
                 ) : <Text style={styles.ayuda}>{asigAbierta.textos[elSel.id] ? `Marca a: ${asigAbierta.textos[elSel.id]}` : 'Solo el entrenador y el segundo entrenador pueden cambiarlo.'}</Text>}
               </View>
@@ -224,6 +259,19 @@ export default function AbpScreen({ route }) {
               <View style={styles.panel}>
                 {elSel.k === 'nota' && <TextInput style={styles.input} value={elSel.t} maxLength={120} onChangeText={(t) => cambiarJugada((j) => cambiarNota(j, elSel.id, t))} />}
                 {elSel.k === 'jugador' && <TouchableOpacity style={styles.chip} onPress={() => cambiarJugada((j) => alternarMarca(j, elSel.id))}><Text style={styles.chipTexto}>{elSel.marca ? '✔ Marca a un rival (quitar)' : 'Marca a un rival (activar)'}</Text></TouchableOpacity>}
+                {elSel.k === 'rival' && (
+                  <>
+                    <Text style={styles.panelTitulo}>Número del rival</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                      {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
+                        <TouchableOpacity key={n} style={[styles.chipNum, elSel.n === n && styles.chipActivo]} onPress={() => cambiarJugada((j) => numeroRival(j, elSel.id, n))}>
+                          <Text style={[styles.chipTexto, elSel.n === n && { color: '#fff' }]}>{n}</Text>
+                        </TouchableOpacity>
+                      ))}
+                      <TouchableOpacity style={styles.chip} onPress={() => cambiarJugada((j) => numeroRival(j, elSel.id, null))}><Text style={styles.chipTexto}>Sin número</Text></TouchableOpacity>
+                    </View>
+                  </>
+                )}
                 {elSel.k === 'flecha' && <Text style={styles.ayuda}>Flecha de {ESTILOS_FLECHA[elSel.estilo].etiqueta.toLowerCase()}. Para cambiarla, bórrala y dibuja otra.</Text>}
                 <TouchableOpacity style={[styles.chip, { borderColor: '#dc2626' }]} onPress={() => { cambiarJugada((j) => borrarElemento(j, elSel.id)); setSel(null); }}><Text style={[styles.chipTexto, { color: '#dc2626' }]}>🗑 Borrar esto</Text></TouchableOpacity>
               </View>
@@ -254,6 +302,7 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 9, backgroundColor: '#fff', marginBottom: 6, fontSize: 14 },
   chip: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff', marginRight: 6, marginBottom: 6 },
   chipActivo: { backgroundColor: '#111827', borderColor: '#111827' },
+  chipNum: { minWidth: 36, alignItems: 'center', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingVertical: 7, backgroundColor: '#fff', marginRight: 6, marginBottom: 6 },
   chipTexto: { fontSize: 12, fontWeight: '700', color: '#374151' },
   panel: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', padding: 10, marginBottom: 10 },
   panelTitulo: { fontWeight: '800', marginBottom: 6, color: '#111827' },

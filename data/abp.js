@@ -27,7 +27,8 @@ export function limpiarJugada(j) {
     if (!e || typeof e.id !== 'string' || vistos.has(e.id)) continue;
     const id = e.id.slice(0, 20);
     if (e.k === 'jugador' && Number.isInteger(e.n) && e.n >= 1 && e.n <= 30) elementos.push({ id, k: 'jugador', n: e.n, ...punto(e), ...(e.marca ? { marca: true } : {}) });
-    else if (e.k === 'rival' || e.k === 'balon') elementos.push({ id, k: e.k, ...punto(e) });
+    else if (e.k === 'rival') elementos.push({ id, k: 'rival', ...(Number.isInteger(e.n) && e.n >= 1 && e.n <= 30 ? { n: e.n } : {}), ...punto(e) });
+    else if (e.k === 'balon') elementos.push({ id, k: 'balon', ...punto(e) });
     else if (e.k === 'flecha' && ESTILOS_FLECHA[e.estilo]) elementos.push({ id, k: 'flecha', estilo: e.estilo, a: punto(e.a), b: punto(e.b) });
     else if (e.k === 'nota') elementos.push({ id, k: 'nota', t: String(e.t || '').slice(0, 120), ...punto(e) });
     else continue;
@@ -46,7 +47,7 @@ export function anadirElemento(j, k, datos = {}) {
   const x = redondear(limitar(datos.x ?? 0.5)); const y = redondear(limitar(datos.y ?? 0.5));
   let e;
   if (k === 'jugador') e = { id: nuevoId(j, 'p'), k, n: siguienteN(j), x, y };
-  else if (k === 'rival') e = { id: nuevoId(j, 'r'), k, x, y };
+  else if (k === 'rival') e = { id: nuevoId(j, 'r'), k, x, y, ...(datos.n ? { n: datos.n } : {}) };
   else if (k === 'balon') e = { id: nuevoId(j, 'b'), k, x, y };
   else if (k === 'nota') e = { id: nuevoId(j, 'n'), k, t: String(datos.t || 'Nota').slice(0, 120), x, y };
   else if (k === 'flecha') e = { id: nuevoId(j, 'f'), k, estilo: ESTILOS_FLECHA[datos.estilo] ? datos.estilo : 'pase', a: punto(datos.a), b: punto(datos.b) };
@@ -56,6 +57,12 @@ export function anadirElemento(j, k, datos = {}) {
 export function moverElemento(j, id, x, y) {
   return { ...j, elementos: j.elementos.map((e) => (e.id === id && e.k !== 'flecha' ? { ...e, x: redondear(limitar(x)), y: redondear(limitar(y)) } : e)) };
 }
+// Número que lleva el rival (su dorsal) para poder decir «marca al 9». null lo quita.
+export const numeroRival = (j, id, n) => ({ ...j, elementos: j.elementos.map((e) => {
+  if (e.id !== id || e.k !== 'rival') return e;
+  const resto = { ...e }; delete resto.n;
+  return n == null ? resto : { ...resto, n: Math.min(30, Math.max(1, Math.round(Number(n)) || 1)) };
+}) });
 export const borrarElemento = (j, id) => ({ ...j, elementos: j.elementos.filter((e) => e.id !== id) });
 export const cambiarNota = (j, id, t) => ({ ...j, elementos: j.elementos.map((e) => (e.id === id && e.k === 'nota' ? { ...e, t: String(t).slice(0, 120) } : e)) });
 export const alternarMarca = (j, id) => ({ ...j, elementos: j.elementos.map((e) => (e.id === id && e.k === 'jugador' ? (e.marca ? (({ marca, ...r }) => r)(e) : { ...e, marca: true }) : e)) });
@@ -135,17 +142,18 @@ export function formasJugada(j, { ancho = 585, asignacion = asignacionVacia(), n
   }
   for (const e of j.elementos.filter((x) => x.k === 'rival')) {
     f.push({ k: 'circle', cx: X(e.x), cy: Y(e.y), r: m.radio, fill: COLOR.rival, stroke: seleccion === e.id ? '#f97316' : '#2b0a12', sw: seleccion === e.id ? 4 : 2 });
+    if (e.n) f.push({ k: 'text', x: X(e.x), y: Y(e.y) + m.fuente * 0.36, t: String(e.n), size: m.fuente * 1.1, fill: '#ffffff', anchor: 'middle', bold: true });
   }
   for (const e of jugadoresDe(j)) {
     const x = X(e.x); const y = Y(e.y); const nom = nombres[asignacion.asig[e.id]];
     f.push({ k: 'circle', cx: x, cy: y, r: m.radio, fill: '#ffffff', stroke: seleccion === e.id ? '#f97316' : COLOR.jugador, sw: seleccion === e.id ? 4 : 2.5 * m.e });
     f.push({ k: 'text', x, y: y + m.fuente * 0.36, t: String(e.n), size: m.fuente * 1.1, fill: '#111827', anchor: 'middle', bold: true });
     if (nom) f.push({ k: 'text', x, y: y + m.radio + m.fuente + 1, t: nom, size: m.fuente, fill: '#ffffff', anchor: 'middle', bold: true });
-    if (e.marca) {
-      const txt = asignacion.textos[e.id] || '';
+    const txt = (asignacion.textos[e.id] || '').trim();
+    if (e.marca || txt) {
       const bx = x + m.radio + 6 * m.e;
       f.push({ k: 'rect', x: bx, y: y - 11 * m.e, w: m.marcaAncho, h: 22 * m.e, rx: 3, fill: '#fffbe6', stroke: '#facc15', sw: 2 });
-      f.push({ k: 'text', x: bx + 5 * m.e, y: y + m.fuente * 0.36, t: txt ? `Marca: ${txt}` : 'Marca a: …', size: m.fuente * 0.95, fill: txt ? '#111827' : '#9ca3af', anchor: 'start' });
+      f.push({ k: 'text', x: bx + 5 * m.e, y: y + m.fuente * 0.36, t: txt ? (/^\d{1,2}$/.test(txt) ? `Marca al nº ${txt}` : `Marca: ${txt}`) : 'Marca a: …', size: m.fuente * 0.95, fill: txt ? '#111827' : '#9ca3af', anchor: 'start' });
     }
   }
   for (const e of j.elementos.filter((x) => x.k === 'nota')) {
@@ -185,7 +193,8 @@ export function htmlJugada(j, asignacion, jugadores, { equipo = '', rival = '', 
   const res = formasJugada(j, { ancho: 760, asignacion, nombres });
   const lista = jugadoresDe(j).map((e) => {
     const id = asignacion.asig[e.id]; const jug = id != null ? jugadores[id] : null;
-    const marca = e.marca ? ` · marca a: <b>${esc(asignacion.textos[e.id] || '—')}</b>` : '';
+    const tx = (asignacion.textos[e.id] || '').trim();
+    const marca = e.marca || tx ? ` · marca ${/^\d{1,2}$/.test(tx) ? 'al nº' : 'a:'} <b>${esc(tx || '—')}</b>` : '';
     return `<li><b>${e.n}</b> ${jug ? `${esc(jug.dorsal != null && jug.dorsal !== '' ? `#${jug.dorsal} ` : '')}${esc(jug.nombre)}` : '<span style="color:#9ca3af">sin asignar</span>'}${marca}</li>`;
   }).join('');
   return `<div style="${saltoDePagina ? 'page-break-before: always;' : ''}font-family:-apple-system,Arial,sans-serif;padding:14px;max-width:790px;margin:auto">
