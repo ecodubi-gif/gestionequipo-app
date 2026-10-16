@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { verPaginaJugadorApi, confirmarEntrenoJugadorApi, enviarBienestarJugadorApi, avisarRetrasoJugadorApi, vistoConvocatoriaJugadorApi } from '../data/apiClient';
 import { formatearFechaCorta } from '../data/fecha';
-import { RESPUESTAS, PREGUNTAS_BIENESTAR, MINUTOS_RETRASO } from '../data/jugadorPublico';
+import { RESPUESTAS, PREGUNTAS_BIENESTAR, MINUTOS_RETRASO, resumenUltimoPartido } from '../data/jugadorPublico';
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const nombreDia = (f) => DIAS[new Date(`${f}T00:00:00Z`).getUTCDay()];
@@ -61,6 +61,21 @@ export default function JugadorPublicoScreen({ token }) {
       <Text style={styles.hola}>Hola, {datos.nombre} 👋</Text>
       <Text style={styles.sub}>C.D. Herrera · tu página personal</Text>
       {!!aviso && <Text style={styles.aviso}>{aviso}</Text>}
+
+      {(() => {
+        const u = resumenUltimoPartido(datos.ultimo_partido);
+        if (!u) return null;
+        return (
+          <>
+            <Text style={styles.seccion}>Último partido</Text>
+            <View style={styles.tarjeta}>
+              <Text style={styles.titulo}>vs {u.rival}</Text>
+              {!!u.resultado && <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151', marginTop: 2 }}>{u.resultado}</Text>}
+              {u.lineas.map((l, i) => <Text key={i} style={{ fontSize: 14, color: '#111827', marginTop: 4 }}>{l}</Text>)}
+            </View>
+          </>
+        );
+      })()}
 
       {datos.partidos && datos.partidos.length > 0 && <Text style={styles.seccion}>Partido</Text>}
       {(datos.partidos || []).map((p) => (

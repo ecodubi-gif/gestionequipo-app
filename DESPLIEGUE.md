@@ -26,6 +26,7 @@ Marca con ✔ lo que hayas ejecutado y comprobado (todas las líneas "OK").
 6. [x] `aplicar-abp.sh` — balón parado (ejecutado el 16/10/2026, todo OK; se puede repetir)
 7. [ ] `aplicar-preventivo-opcional.sh` — preventivo y movilidad apagables por sesión
 8. [ ] `aplicar-tarjetas.sh` — ajustes manuales de tarjetas y sanciones
+9. [ ] `aplicar-resumen-jugador.sh` — resumen del último partido en la página del jugador (necesita el 3)
 
 Pendientes de antes (confirmar si se ejecutaron): `aplicar-rueda-fisica.sh`, `aplicar-rueda-opcional.sh`, `aplicar-scouting.sh`, `aplicar-campos-herrera.sh`, `borrar-partido-alhaurin.sh`, `limpiar-equipo-anterior.sh`, `resetear-clave.sh`, `aplicar-correo.sh`.
 

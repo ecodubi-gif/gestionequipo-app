@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { urlJugador, tokenDeBusqueda, textoEnlace, alertasBienestar, resumenBienestar, previoDeAviso, contarAvisos, textoAviso, textoGrupoConvocatoria, nombreDiaISO, textoRecordatorioEntreno } from '../data/jugadorPublico';
+import { urlJugador, tokenDeBusqueda, textoEnlace, alertasBienestar, resumenBienestar, previoDeAviso, contarAvisos, textoAviso, textoGrupoConvocatoria, nombreDiaISO, textoRecordatorioEntreno, resumenUltimoPartido } from '../data/jugadorPublico';
 let n = 0; const t = (_, f) => { f(); n++; };
 const tok = 'a'.repeat(40);
 t('url', () => { assert.equal(urlJugador('https://app.ecodubi.com/', tok), `https://app.ecodubi.com/?j=${tok}`); });
@@ -61,5 +61,15 @@ t('recordatorio de entreno', () => {
   assert.match(r, /martes 20\/10 \(20:30 en Juan Benjumea\)/); assert.match(r, /Faltan por confirmar: Luis, Jose\./); assert.match(r, /Con dudas: Ana\./); assert.ok(!/Pepe/.test(r)); assert.ok(!/http/.test(r));
   assert.equal(textoRecordatorioEntreno({ fecha: '2026-10-20' }, js, { 1: { respuesta: 'voy' }, 2: { respuesta: 'no_voy' }, 3: { respuesta: 'voy' }, 4: { respuesta: 'voy' } }), '');
   assert.ok(!/Con dudas/.test(textoRecordatorioEntreno({ fecha: '2026-10-20' }, js, {})));
+});
+t('resumen del último partido para el jugador', () => {
+  assert.equal(resumenUltimoPartido(null), null);
+  const r = resumenUltimoPartido({ rival: 'Morón', convocado: true, jugo: true, minutos: 60, goles: 2, amarillas: 1, rojas: 0, goles_nuestros: 3, goles_rival: 1 });
+  assert.equal(r.resultado, 'Ganamos 3-1'); assert.deepEqual(r.lineas, ['⏱ Jugaste 60 minutos', '⚽ 2 goles', '🟨 1 amarilla']);
+  assert.equal(resumenUltimoPartido({ rival: 'X', convocado: true, jugo: false, minutos: 0, goles: 0, amarillas: 0, rojas: 1, goles_nuestros: 0, goles_rival: 0 }).resultado, 'Empatamos 0-0');
+  assert.deepEqual(resumenUltimoPartido({ rival: 'X', convocado: true, jugo: false, minutos: 0, goles: 0, amarillas: 0, rojas: 1, goles_nuestros: 0, goles_rival: 2 }).lineas, ['No llegaste a jugar esta vez', '🟥 1 roja']);
+  assert.equal(resumenUltimoPartido({ rival: 'X', convocado: true, jugo: true, minutos: 1, goles: 1, amarillas: 0, rojas: 0, goles_nuestros: 1, goles_rival: 2 }).lineas[0], '⏱ Jugaste 1 minuto');
+  const sin = resumenUltimoPartido({ rival: 'X', convocado: false, goles_nuestros: 1, goles_rival: 2 }); assert.equal(sin.resultado, 'Perdimos 1-2'); assert.deepEqual(sin.lineas, []);
+  assert.equal(resumenUltimoPartido({ rival: 'X', convocado: false, goles_nuestros: null, goles_rival: null }).resultado, '');
 });
 console.log(`jugadorPublico: ${n} pruebas OK`);

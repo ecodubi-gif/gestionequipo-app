@@ -100,3 +100,18 @@ export function textoRecordatorioEntreno(entrenamiento, jugadores, avisos) {
     'Entrad en vuestro enlace personal y marcad Voy / No voy. Quien no tenga el enlace, que se lo pida al delegado.',
   ].filter(Boolean).join('\n');
 }
+
+// Lo que ve el jugador de su último partido (ya jugado): resultado y lo suyo.
+export function resumenUltimoPartido(u) {
+  if (!u) return null;
+  const n = Number(u.goles_nuestros); const r = Number(u.goles_rival);
+  const hay = u.goles_nuestros != null && u.goles_rival != null && Number.isFinite(n) && Number.isFinite(r);
+  const resultado = !hay ? '' : n > r ? `Ganamos ${n}-${r}` : n < r ? `Perdimos ${n}-${r}` : `Empatamos ${n}-${r}`;
+  const lineas = [];
+  if (!u.convocado) return { rival: u.rival, resultado, lineas: [] };
+  lineas.push(u.jugo ? `⏱ Jugaste ${u.minutos} minuto${u.minutos === 1 ? '' : 's'}` : 'No llegaste a jugar esta vez');
+  if (u.goles > 0) lineas.push(`⚽ ${u.goles} gol${u.goles === 1 ? '' : 'es'}`);
+  if (u.amarillas > 0) lineas.push(`🟨 ${u.amarillas} amarilla${u.amarillas === 1 ? '' : 's'}`);
+  if (u.rojas > 0) lineas.push(`🟥 ${u.rojas} roja${u.rojas === 1 ? '' : 's'}`);
+  return { rival: u.rival, resultado, lineas };
+}
