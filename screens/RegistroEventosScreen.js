@@ -819,6 +819,20 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
 
   const minutos = calcularMinutosJugados(convocatoria, eventos, minutoActual);
 
+  // Estadísticas de los dos equipos (para la pestaña y para el informe en PDF).
+  const aPuerta = (r) => r === 'gol' || r === 'parada';
+  const estadisticas = [
+    { etiqueta: 'Goles', local: golesLocal, visitante: golesVisitante },
+    { etiqueta: 'Tiros', local: contar('tiro', 'local'), visitante: contar('tiro', 'visitante') },
+    { etiqueta: 'Tiros a puerta', local: contar('tiro', 'local', aPuerta), visitante: contar('tiro', 'visitante', aPuerta) },
+    { etiqueta: 'Córners', local: contar('corner', 'local'), visitante: contar('corner', 'visitante') },
+    { etiqueta: 'Faltas cometidas', local: contar('falta', 'local'), visitante: contar('falta', 'visitante') },
+    { etiqueta: 'Amarillas', local: contar('amarilla', 'local'), visitante: contar('amarilla', 'visitante') },
+    { etiqueta: 'Rojas', local: contar('roja', 'local'), visitante: contar('roja', 'visitante') },
+    { etiqueta: 'Cambios', local: contar('cambio', 'local'), visitante: contar('cambio', 'visitante') },
+  ];
+  const marcaNuestro = (lado) => ((lado === 'local') === Boolean(partido.es_local) ? ' (nuestro equipo)' : '');
+
   const nombreEquipo = (equipo) => (equipo === 'local' ? partido.equipo_local : partido.equipo_visitante);
   const descripcionEventoPdf = (e) => {
     const quien = e.tipo === 'cambio'
@@ -836,6 +850,12 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
           <body style="font-family: -apple-system, sans-serif; padding: 24px;">
             <h2>${partido.equipo_local} ${golesLocal} - ${golesVisitante} ${partido.equipo_visitante}${descanso ? ' (descanso)' : ''}</h2>
             <p>${partido.lugar} · ${new Date(partido.fecha).toLocaleDateString('es-ES')}</p>
+
+            <h3>${descanso ? 'Estadísticas de la primera parte' : 'Estadísticas del partido'}</h3>
+            <table style="width:100%; border-collapse: collapse; text-align:center;" border="1" cellpadding="6">
+              <tr><th>${partido.equipo_local}${marcaNuestro('local')}</th><th></th><th>${partido.equipo_visitante}${marcaNuestro('visitante')}</th></tr>
+              ${estadisticas.map((f) => `<tr><td>${f.local}</td><td>${f.etiqueta}</td><td>${f.visitante}</td></tr>`).join('')}
+            </table>
 
             <h3>${descanso ? 'Eventos de la primera parte' : 'Eventos del partido'}</h3>
             <ul>
@@ -875,15 +895,17 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
           {descanso && <Text style={styles.avisoCorreccion}>Descanso: este es el resumen de la primera parte.</Text>}
           {(finalizado || descanso) && (
             <TouchableOpacity style={styles.botonInforme} onPress={generarInforme} disabled={generandoInforme}>
-              {generandoInforme ? <ActivityIndicator color="#fff" /> : <Text style={styles.botonInformeTexto}>{descanso ? '📄 Informe del descanso (eventos + minutos)' : '📄 Informe final (eventos + minutos)'}</Text>}
+              {generandoInforme ? <ActivityIndicator color="#fff" /> : <Text style={styles.botonInformeTexto}>{descanso ? '📄 Informe del descanso (estadísticas, eventos y minutos)' : '📄 Informe final (estadísticas, eventos y minutos)'}</Text>}
             </TouchableOpacity>
           )}
 
           <View style={styles.tablaStats}>
-            <FilaStat etiqueta="Goles" izq={golesLocal} der={golesVisitante} />
-            <FilaStat etiqueta="Tiros (a puerta)" izq={`${contar('tiro', 'local')} (${contar('tiro', 'local', (r) => r === 'gol' || r === 'parada')})`} der={`${contar('tiro', 'visitante')} (${contar('tiro', 'visitante', (r) => r === 'gol' || r === 'parada')})`} />
-            <FilaStat etiqueta="Córners" izq={contar('corner', 'local')} der={contar('corner', 'visitante')} />
-            <FilaStat etiqueta="Faltas cometidas" izq={contar('falta', 'local')} der={contar('falta', 'visitante')} />
+            <View style={styles.filaStat}>
+              <Text style={[styles.filaStatValor, { fontSize: 12 }]} numberOfLines={1}>{partido.equipo_local}{marcaNuestro('local') ? ' ★' : ''}</Text>
+              <Text style={styles.filaStatEtiqueta} />
+              <Text style={[styles.filaStatValor, { fontSize: 12 }]} numberOfLines={1}>{partido.equipo_visitante}{marcaNuestro('visitante') ? ' ★' : ''}</Text>
+            </View>
+            {estadisticas.map((f) => <FilaStat key={f.etiqueta} etiqueta={f.etiqueta} izq={f.local} der={f.visitante} />)}
           </View>
 
           <Text style={styles.tituloResumen}>Minutos jugados</Text>
