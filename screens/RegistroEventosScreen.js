@@ -472,6 +472,9 @@ export default function RegistroEventosScreen({ route, navigation }) {
         <TouchableOpacity style={[styles.chipVista, vista === 'convocatoria' && styles.chipVistaActivo]} onPress={() => setVista('convocatoria')}>
           <Text style={[styles.chipVistaTexto, vista === 'convocatoria' && styles.chipVistaTextoActivo]}>Convocatoria</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.chipVista} onPress={() => navigation.navigate('Alineacion', { partidoId })}>
+          <Text style={styles.chipVistaTexto}>Alineación</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={[styles.chipVista, vista === 'resumen' && styles.chipVistaActivo]} onPress={() => setVista('resumen')}>
           <Text style={[styles.chipVistaTexto, vista === 'resumen' && styles.chipVistaTextoActivo]}>Resumen</Text>
         </TouchableOpacity>

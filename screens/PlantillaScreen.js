@@ -220,6 +220,12 @@ export default function PlantillaScreen({ route, navigation }) {
         )}
       </View>
 
+      {yaGuardada && (
+        <TouchableOpacity style={styles.botonSecundario} onPress={() => navigation.navigate('Alineacion', { partidoId })}>
+          <Text style={styles.botonSecundarioTexto}>🧩 Alineación y cambios (sistema, 11 inicial)</Text>
+        </TouchableOpacity>
+      )}
+
       {publicacion && yaGuardada && (
         <View style={styles.cajaPublicar}>
           <Text style={styles.cajaPublicarTitulo}>📣 Jugadores</Text>

@@ -499,3 +499,13 @@ export const avisarRetrasoJugadorApi = (token, entrenamientoId, minutos) =>
   peticionJugador('POST', token, '/retraso', { entrenamiento_id: entrenamientoId, minutos });
 export const vistoConvocatoriaJugadorApi = (token, partidoId) =>
   peticionJugador('POST', token, '/visto', { partido_id: partidoId });
+
+// --- Alineación por momentos (11 inicial y cambios durante el partido) ---
+export async function obtenerAlineacionApi(partidoId) {
+  const { data } = await peticion('GET', `/partidos/${partidoId}/alineacion`);
+  return data.momentos || [];
+}
+export async function guardarAlineacionApi(partidoId, momentos) {
+  const { data } = await peticion('PUT', `/partidos/${partidoId}/alineacion`, { momentos });
+  return data.momentos || [];
+}
