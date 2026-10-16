@@ -18,12 +18,14 @@ import {
   obtenerEntrenamientoApi,
   listarJugadoresApi,
   obtenerAsistenciasApi,
+  listarConfirmacionesApi,
   guardarAsistenciasApi,
   editarMaterialApi,
   obtenerUsuario,
 } from '../data/apiClient';
 import { compartirWhatsApp, generarDocumento } from '../data/compartir';
 import { formatearFechaCorta } from '../data/fecha';
+import { previoDeAviso, contarAvisos, textoAviso } from '../data/jugadorPublico';
 import { MOTIVOS_JUSTIFICADA, MAX_DETALLE, parsearMotivo, componerMotivo } from '../data/motivoAsistencia';
 
 // Pasar lista y multas: entrenador, segundo entrenador y delegado.
@@ -55,6 +57,7 @@ export default function AsistenciaScreen({ route, navigation }) {
   const [registro, setRegistro] = useState({}); // { [jugadorId]: { estado, multa, motivo } }
   const [bocadillo, setBocadillo] = useState(null); // { jugadorId, nombre } mientras se escribe de qué es la lesión
   const [textoBocadillo, setTextoBocadillo] = useState('');
+  const [avisos, setAvisos] = useState({}); // lo que han contestado los jugadores desde su enlace
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -63,11 +66,12 @@ export default function AsistenciaScreen({ route, navigation }) {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [u, e, jugadores, asistencias] = await Promise.all([
+      const [u, e, jugadores, asistencias, confirmaciones] = await Promise.all([
         obtenerUsuario(),
         obtenerEntrenamientoApi(entrenamientoId),
         listarJugadoresApi(),
         obtenerAsistenciasApi(entrenamientoId),
+        listarConfirmacionesApi(entrenamientoId).catch(() => []),
       ]);
       setUsuario(u);
       setEntrenamiento(e);
@@ -80,6 +84,14 @@ export default function AsistenciaScreen({ route, navigation }) {
       asistencias.forEach((a) => {
         nuevoRegistro[a.jugador.id] = { estado: a.estado, multa: a.multa, motivo: a.motivo || '' };
       });
+      // Lo que avisaron los jugadores rellena la lista de quien aún no tiene asistencia guardada; el delegado corrige.
+      const avisosPorJugador = Object.fromEntries(confirmaciones.map((c) => [c.jugador_id, c]));
+      const guardados = new Set(asistencias.map((a) => a.jugador.id));
+      jugadores.forEach((j) => {
+        const previo = guardados.has(j.id) ? null : previoDeAviso(avisosPorJugador[j.id]);
+        if (previo) nuevoRegistro[j.id] = previo;
+      });
+      setAvisos(avisosPorJugador);
       setRegistro(nuevoRegistro);
     } catch (err) {
       setError(err.message || 'No se pudo cargar');
@@ -189,6 +201,11 @@ export default function AsistenciaScreen({ route, navigation }) {
         puedeEditar={puedeEditarMaterial}
       />
 
+      {Object.keys(avisos).length > 0 && (() => {
+        const c = contarAvisos(avisos, plantilla.map((j) => j.id));
+        return <Text style={styles.resumenAvisos}>📱 Según los jugadores: {c.voy} van · {c.no_voy} no van · {c.duda} con dudas · {c.sin} sin contestar</Text>;
+      })()}
+
       {totalMultas > 0 && (
         <View style={styles.cajaTotal}>
           <Text style={styles.totalTexto}>Total multas de esta sesión: {totalMultas.toFixed(2)} €</Text>
@@ -201,6 +218,9 @@ export default function AsistenciaScreen({ route, navigation }) {
         return (
           <View key={j.id} style={styles.tarjetaJugador}>
             <Text style={styles.nombreJugador}>{j.nombre} {j.apellidos}</Text>
+            {avisos[j.id] && (
+              <Text style={styles.avisoJugador}>📱 Avisó: {textoAviso(avisos[j.id])}</Text>
+            )}
 
             {puedeGestionar ? (
               <>
@@ -446,6 +466,8 @@ const styles = StyleSheet.create({
   totalTexto: { color: '#dc2626', fontWeight: '700', fontSize: 13, textAlign: 'center' },
   vacio: { textAlign: 'center', color: '#9ca3af', marginTop: 30 },
   tarjetaJugador: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 10 },
+  avisoJugador: { fontSize: 12, color: '#6b7280', marginTop: -6, marginBottom: 8 },
+  resumenAvisos: { fontSize: 13, color: '#374151', backgroundColor: '#f3f4f6', borderRadius: 10, padding: 10, marginBottom: 10 },
   nombreJugador: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 10 },
   filaBotones: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chipEstado: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: '#d1d5db' },

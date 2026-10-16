@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import { cargaEquipoSemana, serieCarga, avisoSubida } from '../data/cargaSemanas';
+import { diasDeBaja, textoVuelta, activasOrdenadas } from '../data/lesiones';
+import { leerImporte, totalPendiente, euros } from '../data/multas';
+let n = 0; const t = (nombre, f) => { f(); n++; };
+const sem = (lunes, cargas, partido) => ({ lunes, entrenamientos: cargas.map((c, i) => ({ id: i, duracion_minutos: 60, rpe_medio: c / 60, asistentes: [] })), partidos: partido ? [{ rpe: partido }] : [] });
+t('suma entrenos', () => assert.equal(cargaEquipoSemana(sem('a', [300, 400])), 700));
+t('partido medio', () => assert.equal(cargaEquipoSemana(sem('a', [300], [{ rpe: 6, minutos: 90 }, { rpe: 6, minutos: 30 }])), 300 + 360));
+t('semana vacía', () => assert.equal(cargaEquipoSemana(null), 0));
+const s = serieCarga([sem('1', [600]), sem('2', [600]), sem('3', [600]), sem('4', [900])]);
+t('sin referencia suficiente', () => assert.equal(s[1].ratio, null));
+t('ratio y subida', () => { assert.equal(s[3].ratio, 1.5); assert.equal(s[3].subidaBrusca, true); assert.equal(s[2].subidaBrusca, false); });
+t('aviso', () => { assert.match(avisoSubida(s), /50 %/); assert.equal(avisoSubida(s.slice(0, 3)), null); });
+t('días de baja', () => { assert.equal(diasDeBaja({ fecha_inicio: '2026-10-10' }, '2026-10-15'), 5); assert.equal(diasDeBaja({ fecha_inicio: '2026-10-10', fecha_alta: '2026-10-12' }, '2026-10-15'), 2); });
+t('texto vuelta', () => {
+  assert.equal(textoVuelta({ fecha_inicio: '2026-10-10', fecha_vuelta_estimada: '2026-10-20' }, '2026-10-15'), 'Vuelta estimada en 5 días');
+  assert.match(textoVuelta({ fecha_inicio: '2026-10-10', fecha_vuelta_estimada: '2026-10-14' }, '2026-10-15'), /pasada hace 1 día:/);
+  assert.equal(textoVuelta({ fecha_inicio: '2026-10-10' }, '2026-10-15'), 'Sin fecha de vuelta');
+  assert.equal(textoVuelta({ fecha_inicio: '2026-10-10', fecha_alta: '2026-10-12' }, '2026-10-15'), 'Alta el 12/10/2026');
+});
+t('activas ordenadas', () => assert.deepEqual(activasOrdenadas([{ id: 1, fecha_vuelta_estimada: '2026-11-01' }, { id: 2, fecha_vuelta_estimada: '2026-10-20' }, { id: 3, fecha_alta: 'x' }, { id: 4 }]).map((l) => l.id), [2, 1, 4]));
+t('importes', () => { assert.equal(leerImporte('5'), 5); assert.equal(leerImporte('2,50'), 2.5); for (const m of ['0', '-3', 'mucho', '', '1.234', '99999']) assert.equal(leerImporte(m), null, m); });
+t('pendiente', () => assert.equal(totalPendiente([{ saldo: 10 }, { saldo: -5 }, { saldo: 2.5 }]), 12.5));
+t('euros', () => assert.equal(euros(2.5), '2,50 €'));
+console.log(`cargaSemanas: ${n} pruebas OK`);

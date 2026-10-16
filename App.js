@@ -30,12 +30,26 @@ import './data/dialogos';
 import './data/ajusteWeb';
 import SesionCompletaScreen from './screens/SesionCompletaScreen';
 import SemanaScreen from './screens/SemanaScreen';
+import LesionesScreen from './screens/LesionesScreen';
+import MultasScreen from './screens/MultasScreen';
 import EntrenamientoDetalleScreen from './screens/EntrenamientoDetalleScreen';
+import JugadorPublicoScreen from './screens/JugadorPublicoScreen';
+import EnlacesJugadoresScreen from './screens/EnlacesJugadoresScreen';
+import BienestarScreen from './screens/BienestarScreen';
+import { tokenDeBusqueda } from './data/jugadorPublico';
 import { obtenerToken } from './data/apiClient';
 
 const Stack = createNativeStackNavigator();
 
+// Enlace personal del jugador (?j=CODIGO): se enseña su página, sin login ni panel.
+const TOKEN_JUGADOR = Platform.OS === 'web' && typeof window !== 'undefined' ? tokenDeBusqueda(window.location.search) : null;
+
 export default function App() {
+  if (TOKEN_JUGADOR) return <SafeAreaProvider><JugadorPublicoScreen token={TOKEN_JUGADOR} /></SafeAreaProvider>;
+  return <AppConCuenta />;
+}
+
+function AppConCuenta() {
   const [comprobandoSesion, setComprobandoSesion] = useState(true);
   const [rutaInicial, setRutaInicial] = useState('Login');
 
@@ -92,6 +106,10 @@ export default function App() {
         <Stack.Screen name="Scouting" component={ScoutingScreen} options={{ title: 'Informe del rival' }} />
         <Stack.Screen name="ScoutingHistorial" component={ScoutingHistorialScreen} options={{ title: 'Historial del informe' }} />
         <Stack.Screen name="Semana" component={SemanaScreen} options={{ title: 'Semana' }} />
+        <Stack.Screen name="Lesiones" component={LesionesScreen} options={{ title: 'Lesiones' }} />
+ <Stack.Screen name="Enlaces" component={EnlacesJugadoresScreen} options={{ title: 'Enlaces de jugadores' }} />
+        <Stack.Screen name="Bienestar" component={BienestarScreen} options={{ title: 'Bienestar de los jugadores' }} />
+        <Stack.Screen name="Multas" component={MultasScreen} options={{ title: 'Multas' }} />
         <Stack.Screen name="SesionCompleta" component={SesionCompletaScreen} options={{ title: 'Sesión completa' }} />
         <Stack.Screen
           name="EntrenamientoDetalle"

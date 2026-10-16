@@ -412,3 +412,90 @@ export async function guardarNotaRivalApi(equipo, texto) {
   const { data } = await peticion('PUT', '/liga/notas', { equipo, texto });
   return data;
 }
+
+// --- Lesiones (entrenador, segundo y preparador físico) ---
+export async function listarLesionesApi() {
+  const { data } = await peticion('GET', '/lesiones');
+  return data;
+}
+export async function crearLesionApi(datos) {
+  const { data } = await peticion('POST', '/lesiones', datos);
+  return data;
+}
+export async function actualizarLesionApi(id, datos) {
+  const { data } = await peticion('PUT', `/lesiones/${id}`, datos);
+  return data;
+}
+export async function eliminarLesionApi(id) {
+  await peticion('DELETE', `/lesiones/${id}`);
+}
+
+// --- Saldo de multas (delegado, entrenador y segundo; pagan delegado y entrenador) ---
+export async function obtenerSaldosMultasApi() {
+  const { data } = await peticion('GET', '/multas/saldos');
+  return data;
+}
+export async function listarPagosMultasApi(jugadorId) {
+  const { data } = await peticion('GET', `/multas/pagos${jugadorId ? `?jugador_id=${jugadorId}` : ''}`);
+  return data;
+}
+export async function registrarPagoMultaApi(datos) {
+  const { data } = await peticion('POST', '/multas/pagos', datos);
+  return data;
+}
+export async function eliminarPagoMultaApi(id) {
+  await peticion('DELETE', `/multas/pagos/${id}`);
+}
+
+// --- Enlaces personales de los jugadores ---
+export async function generarEnlacesJugadoresApi(jugadorId) {
+  const { data } = await peticion('POST', '/enlaces-jugadores', jugadorId ? { jugador_id: jugadorId } : {});
+  return data;
+}
+export async function listarConfirmacionesApi(entrenamientoId) {
+  const { data } = await peticion('GET', `/entrenamientos/${entrenamientoId}/confirmaciones`);
+  return data;
+}
+export async function listarBienestarApi(dias = 7) {
+  const { data } = await peticion('GET', `/bienestar?dias=${dias}`);
+  return data;
+}
+
+// Páginas del jugador: sin cuenta, el código del enlace lo identifica.
+async function peticionJugador(metodo, token, ruta, cuerpo) {
+  const respuesta = await llamar(`${API_BASE}/j/${encodeURIComponent(token)}${ruta}`, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+  });
+  const datos = await leerJson(respuesta);
+  if (respuesta.status === 404) throw new Error('Este enlace ya no vale. Pídele uno nuevo al delegado.');
+  if (respuesta.status === 429) throw new Error('Demasiados intentos seguidos. Espera un minuto.');
+  if (!respuesta.ok) {
+    const primero = Object.values(datos.errors || {})[0]?.[0];
+    throw new Error(primero || datos.message || 'No se pudo completar. Inténtalo de nuevo.');
+  }
+  return datos.data;
+}
+export const verPaginaJugadorApi = (token) => peticionJugador('GET', token, '');
+export const confirmarEntrenoJugadorApi = (token, entrenamientoId, respuesta, motivo) =>
+  peticionJugador('POST', token, '/confirmacion', { entrenamiento_id: entrenamientoId, respuesta, motivo: motivo || null });
+export const enviarBienestarJugadorApi = (token, datos) => peticionJugador('POST', token, '/bienestar', datos);
+
+// --- Convocatoria publicada a los jugadores ---
+export async function estadoPublicacionApi(partidoId) {
+  const { data } = await peticion('GET', `/partidos/${partidoId}/publicacion`);
+  return data;
+}
+export async function publicarConvocatoriaApi(partidoId) {
+  const { data } = await peticion('POST', `/partidos/${partidoId}/publicacion`);
+  return data;
+}
+export async function retirarConvocatoriaApi(partidoId) {
+  const { data } = await peticion('DELETE', `/partidos/${partidoId}/publicacion`);
+  return data;
+}
+export const avisarRetrasoJugadorApi = (token, entrenamientoId, minutos) =>
+  peticionJugador('POST', token, '/retraso', { entrenamiento_id: entrenamientoId, minutos });
+export const vistoConvocatoriaJugadorApi = (token, partidoId) =>
+  peticionJugador('POST', token, '/visto', { partido_id: partidoId });

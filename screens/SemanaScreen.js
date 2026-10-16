@@ -17,6 +17,7 @@ import { construirSesion } from '../data/sesion';
 import { cargarPartidoPrevio, minutosPorJugador } from '../data/contextoPartido';
 import { pesosGrupos } from '../data/partidoPrevio';
 import { cargaPrevista, formatoPct } from '../data/cargaPlanificada';
+import { serieCarga, avisoSubida } from '../data/cargaSemanas';
 import { construirVistaSemana, COLOR_VEREDICTO, ETIQUETA_VEREDICTO } from '../data/vistaSemana';
 import { formatearFechaCorta } from '../data/fecha';
 import { compartirWhatsApp } from '../data/compartir';
@@ -44,6 +45,7 @@ export default function SemanaScreen({ navigation }) {
   const [lunes, setLunes] = useState(lunesActual);
   const [vista, setVista] = useState(null);
   const [rival, setRival] = useState(null);
+  const [serie, setSerie] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -53,10 +55,11 @@ export default function SemanaScreen({ navigation }) {
       const [todos, plantillas, semanas, jugadores, partidos] = await Promise.all([
         listarEntrenamientosApi(),
         listarPlantillasEntrenoApi().catch(() => null),
-        obtenerSemanasCargaApi(lunes, 2),
+        obtenerSemanasCargaApi(lunes, 6),
         listarJugadoresApi().catch(() => []),
         listarPartidosApi().catch(() => []),
       ]);
+      setSerie(serieCarga(semanas));
       const activos = jugadores.filter((j) => j.estado !== 'baja');
       const semana = semanas[semanas.length - 1];
       const anterior = semanas.length > 1 ? semanas[semanas.length - 2] : null;
@@ -174,6 +177,28 @@ export default function SemanaScreen({ navigation }) {
 
         {asistMedia !== null && (
           <Text style={styles.pie}>Asistencia media a los entrenos con lista: {asistMedia} %</Text>
+        )}
+
+        {serie.some((x) => x.carga > 0) && (
+          <View style={styles.resumen}>
+            <Text style={styles.resumenTitulo}>Carga del equipo · últimas 6 semanas</Text>
+            {serie.map((x) => {
+              const max = Math.max(...serie.map((y) => y.carga), 1);
+              return (
+                <View key={x.lunes} style={styles.barraFila}>
+                  <View style={styles.barraCabecera}>
+                    <Text style={styles.barraNombre}>Semana del {formatearFechaCorta(x.lunes).slice(0, 5)}{x.lunes === lunes ? ' (esta)' : ''}</Text>
+                    <Text style={styles.barraValor}>{x.carga || '—'}{x.subidaBrusca ? '  ⚠️' : ''}</Text>
+                  </View>
+                  <View style={styles.barraFondo}>
+                    <View style={[styles.barraRelleno, { width: `${Math.max(2, Math.round((x.carga / max) * 100))}%`, backgroundColor: x.subidaBrusca ? '#f59e0b' : '#16a34a' }]} />
+                  </View>
+                </View>
+              );
+            })}
+            {!!avisoSubida(serie) && serie[serie.length - 1].lunes === lunes && <Text style={styles.nota}>{avisoSubida(serie)}</Text>}
+            <Text style={styles.nota}>Entrenos (duración × RPE) más el partido medio por jugador. ⚠️ = más de 1,3 veces la media de las 3 semanas anteriores.</Text>
+          </View>
         )}
 
         {rival && (

@@ -9,7 +9,9 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { listarJugadoresApi, obtenerConvocatoriaApi, guardarConvocatoriaApi } from '../data/apiClient';
+import { listarJugadoresApi, obtenerConvocatoriaApi, guardarConvocatoriaApi, estadoPublicacionApi, publicarConvocatoriaApi, retirarConvocatoriaApi, obtenerPartidoApi, obtenerUsuario } from '../data/apiClient';
+import { compartirWhatsApp } from '../data/compartir';
+import { textoGrupoConvocatoria } from '../data/jugadorPublico';
 import { diferenciasConvocatoria, resumenCambios, titularesDe, suplentesDe } from '../data/convocatoria';
 import { textoPosiciones } from '../data/posiciones';
 
@@ -26,6 +28,8 @@ export default function PlantillaScreen({ route, navigation }) {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  const [publicacion, setPublicacion] = useState(null); // { publicada, vistos, convocados } o null si no se puede gestionar
+  const [partido, setPartido] = useState(null);
 
   const cargar = useCallback(async () => {
     setError('');
@@ -35,6 +39,11 @@ export default function PlantillaScreen({ route, navigation }) {
         obtenerConvocatoriaApi(partidoId),
       ]);
       setPlantilla(jugadores);
+      try {
+        const [u, pub, par] = await Promise.all([obtenerUsuario(), estadoPublicacionApi(partidoId), obtenerPartidoApi(partidoId)]);
+        setPublicacion(['entrenador', 'segundo_entrenador'].includes(u?.role) ? pub : null);
+        setPartido(par);
+      } catch { setPublicacion(null); }
       const nuevaSeleccion = {};
       const guardada = {};
       let capitanEncontrado = null;
@@ -211,6 +220,24 @@ export default function PlantillaScreen({ route, navigation }) {
         )}
       </View>
 
+      {publicacion && yaGuardada && (
+        <View style={styles.cajaPublicar}>
+          <Text style={styles.cajaPublicarTitulo}>📣 Jugadores</Text>
+          {publicacion.publicada ? (
+            <>
+              <Text style={styles.cajaPublicarTexto}>Publicada: cada jugador ve su situación en su enlace. La han visto {publicacion.vistos.filter((id) => publicacion.convocados.includes(id)).length} de {publicacion.convocados.length} convocados.</Text>
+              <TouchableOpacity style={styles.botonSecundario} onPress={() => partido && compartirWhatsApp(textoGrupoConvocatoria(partido))}><Text style={styles.botonSecundarioTexto}>📲 Avisar al grupo</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.botonSecundario} onPress={async () => { try { setPublicacion({ ...publicacion, ...(await retirarConvocatoriaApi(partidoId)) }); } catch (e) { Alert.alert('No se pudo', e.message); } }}><Text style={styles.botonSecundarioTexto}>Retirar de los jugadores</Text></TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.cajaPublicarTexto}>Cuando la convocatoria esté cerrada, publícala: hasta entonces los jugadores no ven nada.</Text>
+              <TouchableOpacity style={styles.botonSecundario} onPress={async () => { try { setPublicacion({ ...publicacion, ...(await publicarConvocatoriaApi(partidoId)) }); } catch (e) { Alert.alert('No se pudo publicar', e.message); } }}><Text style={styles.botonSecundarioTexto}>Publicar a los jugadores</Text></TouchableOpacity>
+            </>
+          )}
+        </View>
+      )}
+
       <TouchableOpacity style={styles.boton} onPress={continuar} disabled={guardando}>
         {guardando ? <ActivityIndicator color="#fff" /> : <Text style={styles.botonTexto}>{yaGuardada ? 'Guardar cambios' : 'Continuar'}</Text>}
       </TouchableOpacity>
@@ -219,6 +246,11 @@ export default function PlantillaScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  cajaPublicar: { backgroundColor: '#f0fdf4', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#bbf7d0' },
+  cajaPublicarTitulo: { fontWeight: '800', color: '#166534', marginBottom: 4 },
+  cajaPublicarTexto: { fontSize: 13, color: '#374151', marginBottom: 8, lineHeight: 18 },
+  botonSecundario: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#16a34a', borderRadius: 10, padding: 10, alignItems: 'center', marginTop: 6 },
+  botonSecundarioTexto: { color: '#166534', fontWeight: '700' },
   contenedor: { flex: 1, backgroundColor: '#f8fafc' },
   centrado: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
   titulo: { fontSize: 24, fontWeight: '700', color: '#1a1a1a' },

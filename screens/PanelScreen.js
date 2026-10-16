@@ -36,6 +36,16 @@ function opcionesDe(rol, navigation) {
   if (cuerpoTecnico) {
     opciones.push({ emoji: '📈', titulo: 'RPE', subtitulo: 'Carga y riesgo (consulta)', ir: () => navigation.navigate('Rpe') });
   }
+  if (cuerpoTecnico || rol === 'preparador_fisico') {
+    opciones.push({ emoji: '🩹', titulo: 'Lesiones', subtitulo: 'Quién está de baja y cuándo vuelve', ir: () => navigation.navigate('Lesiones') });
+  }
+  if (cuerpoTecnico || rol === 'preparador_fisico') {
+    opciones.push({ emoji: '😴', titulo: 'Bienestar', subtitulo: 'Cómo llegan los jugadores', ir: () => navigation.navigate('Bienestar') });
+  }
+  if (cuerpoTecnico || rol === 'delegado') {
+    opciones.push({ emoji: '🔗', titulo: 'Enlaces', subtitulo: 'Enlace personal de cada jugador', ir: () => navigation.navigate('Enlaces') });
+    opciones.push({ emoji: '💶', titulo: 'Multas', subtitulo: 'Saldo y pagos', ir: () => navigation.navigate('Multas') });
+  }
   opciones.push({ emoji: '🏆', titulo: 'Liga', subtitulo: 'Clasificación y rival', ir: () => navigation.navigate('Liga') });
   opciones.push({ emoji: '👥', titulo: 'Plantilla', subtitulo: 'Jugadores del club', ir: () => navigation.navigate('PlantillaClub') });
   return opciones;
