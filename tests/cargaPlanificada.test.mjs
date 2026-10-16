@@ -52,4 +52,15 @@ c=compararCarga(prev,{minutos:90,rpe:null}); t('solo minutos', c.veredicto==='si
 c=compararCarga(prev,{minutos:90,rpe:6.9}); t('límite 15%: 621/540=+15%', c.veredicto==='en_linea');
 t('todos los veredictos tienen texto', ['sin_datos','en_linea','mas_dura','mucho_mas_dura','mas_suave','mucho_mas_suave'].every(k=>TEXTO_VEREDICTO[k]));
 t('formato pct', formatoPct(0.167)==='+17 %'&&formatoPct(-0.5)==='-50 %'&&formatoPct(null)==='');
+// preventivo y movilidad se pueden apagar en una sesión: desaparecen y los minutos y las horas se recolocan
+{
+  const claves=(e)=>construirSesion({entrenamiento:e,plantilla,tareas:[],tipo:1}).items.map((x)=>x.clave);
+  const base=construirSesion({entrenamiento:ent,plantilla,tareas:[],tipo:1});
+  const sinPrev=construirSesion({entrenamiento:{...ent,bloques:{preventivo_activa:false}},plantilla,tareas:[],tipo:1});
+  t('preventivo apagado: no sale',!claves({...ent,bloques:{preventivo_activa:false}}).includes('preventivo')&&claves({...ent,bloques:{preventivo_activa:false}}).includes('movilidad'));
+  t('movilidad apagada: no sale',!claves({...ent,bloques:{movilidad_activa:false}}).includes('movilidad')&&claves({...ent,bloques:{movilidad_activa:false}}).includes('preventivo'));
+  t('encendido o sin ajuste: salen los dos',claves({...ent,bloques:{preventivo_activa:true}}).includes('preventivo')&&claves(ent).includes('movilidad'));
+  t('los minutos bajan 15 y todo se adelanta',base.total-sinPrev.total===15&&sinPrev.items[0].inicio===0&&sinPrev.items[0].clave==='movilidad');
+  t('ambos apagados',claves({...ent,bloques:{preventivo_activa:false,movilidad_activa:false}})[0]!=='preventivo'&&!claves({...ent,bloques:{preventivo_activa:false,movilidad_activa:false}}).includes('movilidad'));
+}
 console.log(`${ok} OK, ${mal} fallos`);

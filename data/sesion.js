@@ -38,11 +38,12 @@ export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
     reloj += item.minutos;
   };
 
-  anadir({
+  // El preventivo y la movilidad se pueden apagar en una sesión concreta (preventivo_activa / movilidad_activa = false).
+  if (textos.preventivo_activa !== false) anadir({
     clave: 'preventivo', titulo: 'Trabajo preventivo neuromuscular', responsable: 'Preparador físico', minutos: MIN_PREVENTIVO,
     estaciones: plantilla ? plantilla.preventivo : null, sinPrograma: !plantilla,
   });
-  anadir({
+  if (textos.movilidad_activa !== false) anadir({
     clave: 'movilidad', titulo: 'Movilidad dinámica integrada', responsable: 'Preparador físico', minutos: MIN_MOVILIDAD,
     tramos: plantilla ? plantilla.movilidad : null, sinPrograma: !plantilla,
   });

@@ -17,6 +17,9 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
   const puedeTipo = puedePF || puedeEntrenador;
   const plantilla = plantillas.find((p) => p.numero === tipo);
   const bloques = entrenamiento.bloques || {};
+  const puedeApagar = puedePF || puedeEntrenador; // apagar preventivo o movilidad solo en esta sesión
+  const preventivoOff = bloques.preventivo_activa === false;
+  const movilidadOff = bloques.movilidad_activa === false;
 
   const [edicion, setEdicion] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -258,8 +261,16 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
         <Text style={styles.vacio}>Todavía no hay programa de preparación física para el Entreno {tipo}.</Text>
       ) : (
         <>
-          <Text style={styles.subtitulo}>1. Trabajo preventivo neuromuscular · 15' (4 estaciones en circuito, 3' cada una)</Text>
-          {plantilla.preventivo.map((e, i) => (
+          <View style={styles.cabeceraBloque}>
+            <Text style={[styles.subtitulo, { flex: 1, marginTop: 0, marginBottom: 0 }]}>1. Trabajo preventivo neuromuscular · 15' (4 estaciones en circuito, 3' cada una)</Text>
+            {puedeApagar && (
+              <TouchableOpacity style={[styles.interruptor, !preventivoOff && styles.interruptorActivo]} onPress={() => alternarBloque('preventivo')}>
+                <Text style={styles.interruptorTexto}>{preventivoOff ? 'OFF' : 'ON'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {preventivoOff && <Text style={styles.vacio}>Desactivado en esta sesión: no se hace preventivo.</Text>}
+          {!preventivoOff && plantilla.preventivo.map((e, i) => (
             <TouchableOpacity key={i} style={styles.estacion} disabled={!puedePF} onPress={() => abrirEstacion(i)} activeOpacity={0.7}>
               <View style={styles.numero}><Text style={styles.numeroTexto}>{i + 1}</Text></View>
               <View style={{ flex: 1 }}>
@@ -270,8 +281,16 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
             </TouchableOpacity>
           ))}
 
-          <Text style={styles.subtitulo}>2. Movilidad dinámica integrada · 5' (2 filas a 10 metros)</Text>
-          {plantilla.movilidad.map((m, i) => (
+          <View style={styles.cabeceraBloque}>
+            <Text style={[styles.subtitulo, { flex: 1, marginTop: 0, marginBottom: 0 }]}>2. Movilidad dinámica integrada · 5' (2 filas a 10 metros)</Text>
+            {puedeApagar && (
+              <TouchableOpacity style={[styles.interruptor, !movilidadOff && styles.interruptorActivo]} onPress={() => alternarBloque('movilidad')}>
+                <Text style={styles.interruptorTexto}>{movilidadOff ? 'OFF' : 'ON'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {movilidadOff && <Text style={styles.vacio}>Desactivada en esta sesión.</Text>}
+          {!movilidadOff && plantilla.movilidad.map((m, i) => (
             <TouchableOpacity key={i} style={styles.tramo} disabled={!puedePF} onPress={() => abrirTramo(i)} activeOpacity={0.7}>
               <View style={styles.tiempo}><Text style={styles.tiempoTexto}>{m.tiempo}</Text></View>
               <View style={{ flex: 1 }}>
@@ -526,6 +545,7 @@ const styles = StyleSheet.create({
   ejercicio: { fontSize: 12, color: '#4b5563', marginTop: 3, lineHeight: 17 },
   series: { fontSize: 12, color: '#7c3aed', fontWeight: '700', marginTop: 6 },
   pie: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  cabeceraBloque: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 },
   interruptor: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#e5e7eb', marginLeft: 8 },
   interruptorActivo: { backgroundColor: '#16a34a' },
   interruptorTexto: { fontSize: 10, fontWeight: '800', color: '#fff' },
