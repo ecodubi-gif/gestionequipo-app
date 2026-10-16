@@ -60,4 +60,9 @@ t('sistemas de la lámina: etiquetas con sentido y laterales a los lados', () =>
   const h = huecosDeSistema('4-4-2'); assert.ok(h[1].x < h[2].x && h[2].x < h[3].x && h[3].x < h[4].x);
   assert.equal(etiquetasSistema('5-2-1-2').join(), 'POR,CAI,DFC,DFC,DFC,CAD,MCD,MCD,MP,DC,DC');
 });
+t('parejas por dentro, no pegadas a banda (4-2-3-1, 4-2-2-2, 4-2-1-3)', () => {
+  for (const sis of ['4-2-3-1', '4-2-2-2', '4-2-1-3']) { const h = huecosDeSistema(sis); const l = lineasDe(sis); let i = 1 + l[0]; for (const n of l.slice(1, -1)) { const fila = h.slice(i, i + n); if (n === 2) assert.ok(fila.every((p) => p.x >= 0.25 && p.x <= 0.75), sis); i += n; } }
+  const h = huecosDeSistema('4-2-3-1'); assert.ok(h[7].x >= 0.2 && h[9].x <= 0.8);
+  const g = huecosDeSistema('4-2-2-2'); assert.ok(g[9].x >= 0.3 && g[10].x <= 0.7);
+});
 console.log(`alineacion: ${n} pruebas OK`);

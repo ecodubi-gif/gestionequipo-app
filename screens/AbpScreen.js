@@ -10,7 +10,7 @@ import {
 } from '../data/apiClient';
 import {
   TIPOS, ESTILOS_FLECHA, PROPORCION, limpiarJugada, jugadoresDe, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca,
-  duplicar, numeroRival, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, formasJugada, elementoEn, htmlJugada,
+  duplicar, numeroRival, asignacionVacia, asignar, ponerTexto, moverAsignado, limpiarAsignacion, formasJugada, elementoEn, htmlJugada,
 } from '../data/abp';
 
 const HERRAMIENTAS = [
@@ -53,6 +53,7 @@ export default function AbpScreen({ route }) {
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
 
   const ids = useMemo(() => convocados.map((j) => j.id), [convocados]);
+  const dorsales = useMemo(() => Object.fromEntries(convocados.map((j) => [j.id, j.dorsal])), [convocados]);
   const nombres = useMemo(() => Object.fromEntries(convocados.map((j) => [j.id, corto(j)])), [convocados]);
   const asigDe = (j) => limpiarAsignacion(j ? asigs[j.id || 'nueva'] : null, j || { elementos: [] }, ids);
   const asigAbierta = abierta ? asigDe(abierta) : asignacionVacia();
@@ -67,7 +68,7 @@ export default function AbpScreen({ route }) {
   const tocarEn = (px, py) => {
     const u = px / ancho; const v = py / alto;
     if (modo === 'asignar') {
-      const id = elementoEn(abierta, px, py, ancho);
+      const id = elementoEn(abierta, px, py, ancho, asigAbierta);
       const el = abierta.elementos.find((x) => x.id === id);
       return setSel(el && el.k === 'jugador' ? id : null);
     }
@@ -93,6 +94,10 @@ export default function AbpScreen({ route }) {
       const id = elementoEn(abierta, px, py, ancho);
       const el = abierta.elementos.find((x) => x.id === id);
       if (el && el.k !== 'flecha') { arrastre.current.id = id; setSel(id); }
+    } else if (modo === 'asignar' && puedeEditar) { // en este partido se puede colocar a cada jugador donde se quiera
+      const id = elementoEn(abierta, px, py, ancho, asigAbierta);
+      const el = abierta.elementos.find((x) => x.id === id);
+      if (el && el.k === 'jugador') { arrastre.current.id = id; setSel(id); }
     }
   };
   const alMover = (e) => {
@@ -101,7 +106,8 @@ export default function AbpScreen({ route }) {
     const { locationX: px, locationY: py } = e.nativeEvent;
     if (!a.movido && Math.hypot(px - a.x0, py - a.y0) < 5) return;
     a.movido = true;
-    cambiarJugada((j) => moverElemento(j, a.id, px / ancho, py / alto));
+    if (modo === 'asignar') ponerAsig((as) => moverAsignado(as, a.id, px / ancho, py / alto));
+    else cambiarJugada((j) => moverElemento(j, a.id, px / ancho, py / alto));
   };
   const alSoltar = (e) => {
     const a = arrastre.current; arrastre.current = null;
@@ -123,10 +129,10 @@ export default function AbpScreen({ route }) {
     try {
       const a = asigAbierta;
       const r = await guardarAsignacionAbpApi(partidoId, abierta.id, a);
-      setAsigs((x) => ({ ...x, [abierta.id]: { asig: r.asig || {}, textos: r.textos || {} } }));
+      setAsigs((x) => ({ ...x, [abierta.id]: { asig: r.asig || {}, textos: r.textos || {}, pos: r.pos || {} } }));
     } catch (e) { setError(e.message || 'No se pudo guardar'); } finally { setGuardando(false); }
   };
-  const ponerAsig = (f) => setAsigs((x) => ({ ...x, [abierta.id || 'nueva']: f(asigAbierta) }));
+  const ponerAsig = (f) => setAsigs((x) => { const k = abierta.id || 'nueva'; return { ...x, [k]: f(limpiarAsignacion(x[k], abierta, ids)) }; });
   const borrarJugada = () => confirmar('Borrar jugada', `¿Borrar «${abierta.titulo}» para todos los partidos?`, async () => {
     try { if (abierta.id) await borrarJugadaAbpApi(abierta.id); setJugadas((js) => js.filter((x) => x.id !== abierta.id)); setAbierta(null); setSucio(false); } catch (e) { setError(e.message || 'No se pudo borrar'); }
   });
@@ -161,7 +167,7 @@ export default function AbpScreen({ route }) {
     );
   }
 
-  const res = formasJugada(abierta, { ancho, asignacion: asigAbierta, nombres, seleccion: sel });
+  const res = formasJugada(abierta, { ancho, asignacion: asigAbierta, nombres, dorsales, seleccion: sel });
   const elSel = abierta.elementos.find((x) => x.id === sel);
   const usados = new Set(Object.values(asigAbierta.asig));
   return (
@@ -223,7 +229,7 @@ export default function AbpScreen({ route }) {
       <View style={{ width: ancho, marginTop: 10 }}>
         {modo === 'asignar' && (
           <>
-            {!elSel && <Text style={styles.ayuda}>Toca un número del campo y elige quién lo ocupa.</Text>}
+            {!elSel && <Text style={styles.ayuda}>Toca un círculo y elige quién lo ocupa. Arrástralo para colocarlo donde quieras en este partido.</Text>}
             {elSel && elSel.k === 'jugador' && (
               <View style={styles.panel}>
                 <Text style={styles.panelTitulo}>Número {elSel.n}{asigAbierta.asig[elSel.id] ? ` · ${nombres[asigAbierta.asig[elSel.id]]}` : ''}</Text>
@@ -237,20 +243,16 @@ export default function AbpScreen({ route }) {
                       ))}
                       <TouchableOpacity style={styles.chip} onPress={() => ponerAsig((a) => asignar(a, elSel.id, null))}><Text style={styles.chipTexto}>Quitar</Text></TouchableOpacity>
                     </View>
-                    <Text style={styles.panelTitulo}>¿A quién marca? (número del rival)</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                      {Array.from({ length: 11 }, (_, i) => String(i + 1)).map((n) => (
-                        <TouchableOpacity key={n} style={[styles.chipNum, asigAbierta.textos[elSel.id] === n && styles.chipActivo]} onPress={() => ponerAsig((a) => ponerTexto(a, elSel.id, asigAbierta.textos[elSel.id] === n ? '' : n))}>
-                          <Text style={[styles.chipTexto, asigAbierta.textos[elSel.id] === n && { color: '#fff' }]}>{n}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    <TextInput style={styles.input} placeholder="…o escribe (p. ej. el 9, el lateral izquierdo)" value={asigAbierta.textos[elSel.id] || ''} maxLength={60} onChangeText={(t) => ponerAsig((a) => ponerTexto(a, elSel.id, t))} />
+                    <Text style={styles.panelTitulo}>¿A quién marca? Número del rival</Text>
+                    <TextInput style={[styles.input, { width: 90 }]} placeholder="Nº" keyboardType="number-pad" inputMode="numeric" maxLength={2} value={asigAbierta.textos[elSel.id] || ''} onChangeText={(t) => ponerAsig((a) => ponerTexto(a, elSel.id, t))} />
+                    {!!asigAbierta.pos[elSel.id] && (
+                      <TouchableOpacity style={styles.chip} onPress={() => ponerAsig((a) => { const pos = { ...a.pos }; delete pos[elSel.id]; return { ...a, pos }; })}><Text style={styles.chipTexto}>↺ Volver a su sitio</Text></TouchableOpacity>
+                    )}
                   </>
-                ) : <Text style={styles.ayuda}>{asigAbierta.textos[elSel.id] ? `Marca a: ${asigAbierta.textos[elSel.id]}` : 'Solo el entrenador y el segundo entrenador pueden cambiarlo.'}</Text>}
+                ) : <Text style={styles.ayuda}>{asigAbierta.textos[elSel.id] ? `Marca al nº ${asigAbierta.textos[elSel.id]}` : 'Solo el entrenador y el segundo entrenador pueden cambiarlo.'}</Text>}
               </View>
             )}
-            {puedeEditar && <TouchableOpacity style={[styles.botonVerde, { alignSelf: 'stretch' }]} onPress={guardarAsignacion} disabled={guardando}><Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar nombres de este partido'}</Text></TouchableOpacity>}
+            {puedeEditar && <TouchableOpacity style={[styles.botonVerde, { alignSelf: 'stretch' }]} onPress={guardarAsignacion} disabled={guardando}><Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar jugadores de este partido'}</Text></TouchableOpacity>}
           </>
         )}
         {modo === 'editar' && puedeEditar && (

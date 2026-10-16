@@ -532,6 +532,6 @@ export async function obtenerAsignacionesAbpApi(partidoId) {
   return data || {};
 }
 export async function guardarAsignacionAbpApi(partidoId, jugadaId, asignacion) {
-  const { data } = await peticion('PUT', `/partidos/${partidoId}/abp/${jugadaId}`, { asig: asignacion.asig, textos: asignacion.textos });
+  const { data } = await peticion('PUT', `/partidos/${partidoId}/abp/${jugadaId}`, { asig: asignacion.asig, textos: asignacion.textos, pos: asignacion.pos || {} });
   return data;
 }

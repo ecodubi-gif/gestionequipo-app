@@ -68,23 +68,32 @@ export const cambiarNota = (j, id, t) => ({ ...j, elementos: j.elementos.map((e)
 export const alternarMarca = (j, id) => ({ ...j, elementos: j.elementos.map((e) => (e.id === id && e.k === 'jugador' ? (e.marca ? (({ marca, ...r }) => r)(e) : { ...e, marca: true }) : e)) });
 export const duplicar = (j, titulo) => ({ ...copiar(j), id: null, titulo: String(titulo || `${j.titulo} (copia)`).slice(0, 80) });
 
-// ---------- Asignación de cada partido: { asig: { [idElemento]: jugadorId }, textos: { [idElemento]: 'texto' } } ----------
-export const asignacionVacia = () => ({ asig: {}, textos: {} });
+// ---------- Asignación de cada partido ----------
+// { asig: { [idElemento]: jugadorId }, textos: { [idElemento]: 'número del rival al que marca' }, pos: { [idElemento]: {x, y} } }
+// pos mueve a ese jugador solo en este partido (el dibujo de la biblioteca no cambia).
+export const asignacionVacia = () => ({ asig: {}, textos: {}, pos: {} });
 export function asignar(a, elementoId, jugadorId) {
   const asig = { ...a.asig };
   for (const k of Object.keys(asig)) if (asig[k] === jugadorId) delete asig[k]; // un jugador solo ocupa un puesto
   if (jugadorId == null) delete asig[elementoId]; else asig[elementoId] = jugadorId;
   return { ...a, asig };
 }
-export const ponerTexto = (a, elementoId, t) => ({ ...a, textos: { ...a.textos, [elementoId]: String(t).slice(0, 60) } });
+// Solo el número del rival (hasta 2 cifras).
+export const ponerTexto = (a, elementoId, t) => ({ ...a, textos: { ...a.textos, [elementoId]: String(t).replace(/\D/g, '').slice(0, 2) } });
+export const moverAsignado = (a, elementoId, x, y) => ({ ...a, pos: { ...(a.pos || {}), [elementoId]: { x: redondear(limitar(x)), y: redondear(limitar(y)) } } });
+export const quitarPosiciones = (a) => ({ ...a, pos: {} });
+// La jugada con los jugadores en las posiciones de este partido.
+export const conPosiciones = (j, a) => ((a && a.pos && Object.keys(a.pos).length)
+  ? { ...j, elementos: j.elementos.map((e) => (e.k === 'jugador' && a.pos[e.id] ? { ...e, x: a.pos[e.id].x, y: a.pos[e.id].y } : e)) } : j);
 
 // Deja solo lo que existe en la jugada y entre los convocados.
 export function limpiarAsignacion(a, j, convocadosIds) {
   const ids = new Set(j.elementos.filter((e) => e.k === 'jugador').map((e) => e.id));
-  const asig = {}; const textos = {}; const usados = new Set();
+  const asig = {}; const textos = {}; const pos = {}; const usados = new Set();
   for (const [k, v] of Object.entries((a && a.asig) || {})) if (ids.has(k) && convocadosIds.includes(v) && !usados.has(v)) { asig[k] = v; usados.add(v); }
-  for (const [k, v] of Object.entries((a && a.textos) || {})) if (ids.has(k) && typeof v === 'string' && v.trim()) textos[k] = v.slice(0, 60);
-  return { asig, textos };
+  for (const [k, v] of Object.entries((a && a.textos) || {})) { const d = typeof v === 'string' ? v.replace(/\D/g, '').slice(0, 2) : ''; if (ids.has(k) && d) textos[k] = d; }
+  for (const [k, v] of Object.entries((a && a.pos) || {})) if (ids.has(k) && v && Number.isFinite(Number(v.x)) && Number.isFinite(Number(v.y))) pos[k] = { x: redondear(limitar(v.x)), y: redondear(limitar(v.y)) };
+  return { asig, textos, pos };
 }
 
 // ---------- Dibujo ----------
@@ -110,7 +119,8 @@ const cajaNota = (e, ancho) => {
   return { lineas, w: m.notaAncho, h: lineas.length * m.linea + 8 * m.e, x: e.x * ancho - m.notaAncho / 2, y: e.y * ancho * PROPORCION - (lineas.length * m.linea + 8 * m.e) / 2 };
 };
 
-export function formasJugada(j, { ancho = 585, asignacion = asignacionVacia(), nombres = {}, seleccion = null } = {}) {
+export function formasJugada(jOriginal, { ancho = 585, asignacion = asignacionVacia(), nombres = {}, dorsales = {}, seleccion = null } = {}) {
+  const j = conPosiciones(jOriginal, asignacion);
   const alto = Math.round(ancho * PROPORCION);
   const m = medidas(ancho);
   const X = (u) => u * ancho; const Y = (v) => v * alto;
@@ -147,13 +157,15 @@ export function formasJugada(j, { ancho = 585, asignacion = asignacionVacia(), n
   for (const e of jugadoresDe(j)) {
     const x = X(e.x); const y = Y(e.y); const nom = nombres[asignacion.asig[e.id]];
     f.push({ k: 'circle', cx: x, cy: y, r: m.radio, fill: '#ffffff', stroke: seleccion === e.id ? '#f97316' : COLOR.jugador, sw: seleccion === e.id ? 4 : 2.5 * m.e });
-    f.push({ k: 'text', x, y: y + m.fuente * 0.36, t: String(e.n), size: m.fuente * 1.1, fill: '#111827', anchor: 'middle', bold: true });
+    const dorsal = dorsales[asignacion.asig[e.id]];
+    const numero = dorsal != null && dorsal !== '' ? String(dorsal) : String(e.n); // con jugador asignado, su dorsal
+    f.push({ k: 'text', x, y: y + m.fuente * 0.36, t: numero, size: m.fuente * (numero.length > 2 ? 0.9 : 1.1), fill: '#111827', anchor: 'middle', bold: true });
     if (nom) f.push({ k: 'text', x, y: y + m.radio + m.fuente + 1, t: nom, size: m.fuente, fill: '#ffffff', anchor: 'middle', bold: true });
     const txt = (asignacion.textos[e.id] || '').trim();
     if (e.marca || txt) {
       const bx = x + m.radio + 6 * m.e;
       f.push({ k: 'rect', x: bx, y: y - 11 * m.e, w: m.marcaAncho, h: 22 * m.e, rx: 3, fill: '#fffbe6', stroke: '#facc15', sw: 2 });
-      f.push({ k: 'text', x: bx + 5 * m.e, y: y + m.fuente * 0.36, t: txt ? (/^\d{1,2}$/.test(txt) ? `Marca al nº ${txt}` : `Marca: ${txt}`) : 'Marca a: …', size: m.fuente * 0.95, fill: txt ? '#111827' : '#9ca3af', anchor: 'start' });
+      f.push({ k: 'text', x: bx + 5 * m.e, y: y + m.fuente * 0.36, t: `${numero} marca al nº ${txt || '…'}`, size: m.fuente * 0.95, fill: '#111827', anchor: 'start', bold: true });
     }
   }
   for (const e of j.elementos.filter((x) => x.k === 'nota')) {
@@ -171,7 +183,8 @@ const distSegmento = (px, py, x1, y1, x2, y2) => {
 };
 
 // Qué hay en el punto (px, py) en píxeles del dibujo: primero jugadores, rivales y balón, luego notas y por último flechas.
-export function elementoEn(j, px, py, ancho) {
+export function elementoEn(jOriginal, px, py, ancho, asignacion = null) {
+  const j = conPosiciones(jOriginal, asignacion);
   const m = medidas(ancho); const alto = ancho * PROPORCION;
   let mejor = null; let mejorD = Infinity;
   for (const e of j.elementos.filter((x) => x.k === 'jugador' || x.k === 'rival' || x.k === 'balon')) {
@@ -190,12 +203,13 @@ const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': 
 // jugadores: { [id]: { dorsal, nombre } }
 export function htmlJugada(j, asignacion, jugadores, { equipo = '', rival = '', categoria = '2º ANDALUZA SENIOR' } = {}, saltoDePagina = false) {
   const nombres = Object.fromEntries(Object.entries(jugadores).map(([id, v]) => [id, v.nombre]));
-  const res = formasJugada(j, { ancho: 760, asignacion, nombres });
+  const dorsales = Object.fromEntries(Object.entries(jugadores).map(([id, v]) => [id, v.dorsal]));
+  const res = formasJugada(j, { ancho: 760, asignacion, nombres, dorsales });
   const lista = jugadoresDe(j).map((e) => {
     const id = asignacion.asig[e.id]; const jug = id != null ? jugadores[id] : null;
     const tx = (asignacion.textos[e.id] || '').trim();
-    const marca = e.marca || tx ? ` · marca ${/^\d{1,2}$/.test(tx) ? 'al nº' : 'a:'} <b>${esc(tx || '—')}</b>` : '';
-    return `<li><b>${e.n}</b> ${jug ? `${esc(jug.dorsal != null && jug.dorsal !== '' ? `#${jug.dorsal} ` : '')}${esc(jug.nombre)}` : '<span style="color:#9ca3af">sin asignar</span>'}${marca}</li>`;
+    const marca = e.marca || tx ? ` · marca al nº <b>${esc(tx || '—')}</b>` : '';
+    return `<li>${jug ? `${esc(jug.dorsal != null && jug.dorsal !== '' ? `#${jug.dorsal} ` : '')}${esc(jug.nombre)}` : '<span style="color:#9ca3af">puesto ' + e.n + ' sin asignar</span>'}${marca}</li>`;
   }).join('');
   return `<div style="${saltoDePagina ? 'page-break-before: always;' : ''}font-family:-apple-system,Arial,sans-serif;padding:14px;max-width:790px;margin:auto">
   <div style="background:#7f1d1d;color:#fff;padding:8px 12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
