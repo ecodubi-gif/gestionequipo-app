@@ -33,7 +33,7 @@ export default function BienestarScreen() {
           {f.alertas.length > 0 && <Text style={styles.alerta}>⚠️ {f.alertas.join(' · ')}</Text>}
         </View>
       ))}
-      <Text style={styles.nota}>Escala de 1 a 5. Los avisos son orientativos: la decisión es del preparador físico. Datos de salud: no los ve el delegado.</Text>
+      <Text style={styles.nota}>Escala de 1 a 5. Los avisos son orientativos: la decisión es del preparador físico. Datos de salud: solo los ven el preparador físico y el delegado.</Text>
     </ScrollView>
   );
 }

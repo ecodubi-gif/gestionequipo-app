@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, ScrollV
 import { useFocusEffect } from '@react-navigation/native';
 import { confirmar } from '../data/confirmar';
 import { generarDocumento } from '../data/compartir';
-import { obtenerPartidoApi, obtenerConvocatoriaApi, obtenerAlineacionApi, guardarAlineacionApi, obtenerUsuario } from '../data/apiClient';
+import { obtenerPartidoApi, obtenerConvocatoriaApi, obtenerAlineacionApi, guardarAlineacionApi, obtenerNoDisponiblesApi, obtenerUsuario } from '../data/apiClient';
 import {
   SISTEMAS, MAX_MOMENTOS, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco,
   etiquetasSistema, frasesDeCambios, limpiarMomentos, htmlMomento,
@@ -20,6 +20,7 @@ export default function AlineacionScreen({ route }) {
   const alto = Math.round(ancho * 1.3);
   const [partido, setPartido] = useState(null);
   const [convocados, setConvocados] = useState([]);
+  const [noDisponibles, setNoDisponibles] = useState([]);
   const [momentos, setMomentos] = useState([]);
   const [activoId, setActivoId] = useState(null);
   const [seleccion, setSeleccion] = useState(null); // { tipo: 'hueco', i } | { tipo: 'banquillo', id }
@@ -33,7 +34,8 @@ export default function AlineacionScreen({ route }) {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [p, conv, mom, u] = await Promise.all([obtenerPartidoApi(partidoId), obtenerConvocatoriaApi(partidoId), obtenerAlineacionApi(partidoId), obtenerUsuario()]);
+      const [p, conv, mom, u, nd] = await Promise.all([obtenerPartidoApi(partidoId), obtenerConvocatoriaApi(partidoId), obtenerAlineacionApi(partidoId), obtenerUsuario(), obtenerNoDisponiblesApi().catch(() => [])]);
+      setNoDisponibles(nd);
       const js = conv.map((c) => ({ ...c.jugador, titular: c.titular }));
       setPartido(p); setConvocados(js);
       setPuedeEditar(['entrenador', 'segundo_entrenador'].includes(u?.role));
@@ -98,6 +100,7 @@ export default function AlineacionScreen({ route }) {
   const etiquetas = etiquetasSistema(activo.sistema);
   const suplentes = suplentesDe(activo, convocados);
   const frases = frasesDeCambios(anterior, activo, (id) => corto(porId[id]));
+  const enCampoNoDisponibles = activo.huecos.filter((h) => h.jugador_id != null && noDisponibles.includes(h.jugador_id)).map((h) => corto(porId[h.jugador_id]));
   const selHueco = seleccion && seleccion.tipo === 'hueco' ? seleccion.i : null;
 
   return (
@@ -147,7 +150,7 @@ export default function AlineacionScreen({ route }) {
             return (
               <TouchableOpacity key={i} activeOpacity={0.8} onPress={() => tocarHueco(i)} style={[styles.disco, { left: h.x * ancho - 22, top: h.y * alto - 22 }, sel && styles.discoSel]}>
                 <Text style={styles.discoTexto}>{j ? (j.dorsal ?? '') : etiquetas[i]}</Text>
-                <Text style={styles.discoNombre} numberOfLines={1}>{j ? corto(j) : '—'}</Text>
+                <Text style={styles.discoNombre} numberOfLines={1}>{j ? corto(j) : '—'}{j && noDisponibles.includes(j.id) ? ' 🩹' : ''}</Text>
               </TouchableOpacity>
             );
           })}
@@ -166,6 +169,8 @@ export default function AlineacionScreen({ route }) {
           </View>
         )}
 
+        {enCampoNoDisponibles.length > 0 && <Text style={styles.aviso}>🩹 En el campo hay jugadores no disponibles: {enCampoNoDisponibles.join(', ')}</Text>}
+
         {frases.length > 0 && (
           <View style={styles.cajaCambios}>
             <Text style={styles.cajaTitulo}>Cambios respecto a «{anterior.etiqueta}»</Text>
@@ -177,7 +182,7 @@ export default function AlineacionScreen({ route }) {
         <View style={styles.fila}>
           {suplentes.map((j) => (
             <TouchableOpacity key={j.id} style={[styles.chip, seleccion && seleccion.tipo === 'banquillo' && seleccion.id === j.id && styles.chipActivo]} onPress={() => tocarBanquillo(j.id)}>
-              <Text style={[styles.chipTexto, seleccion && seleccion.tipo === 'banquillo' && seleccion.id === j.id && { color: '#fff' }]}>{j.dorsal != null && j.dorsal !== '' ? `${j.dorsal} ` : ''}{corto(j)}</Text>
+              <Text style={[styles.chipTexto, seleccion && seleccion.tipo === 'banquillo' && seleccion.id === j.id && { color: '#fff' }]}>{j.dorsal != null && j.dorsal !== '' ? `${j.dorsal} ` : ''}{corto(j)}{noDisponibles.includes(j.id) ? ' 🩹' : ''}</Text>
             </TouchableOpacity>
           ))}
           {suplentes.length === 0 && <Text style={styles.ayuda}>No quedan suplentes.</Text>}

@@ -20,6 +20,7 @@ import {
   actualizarJugadorApi,
   eliminarJugadorApi,
   obtenerUsuario,
+  obtenerNoDisponiblesApi,
 } from '../data/apiClient';
 
 // La plantilla del club la gestiona el delegado; entrenador, segundo
@@ -66,7 +67,7 @@ function SelectorPosicion({ valor, onCambiar, excluida, permitirNinguna }) {
   );
 }
 
-export default function PlantillaClubScreen() {
+export default function PlantillaClubScreen({ navigation }) {
   const [plantilla, setPlantilla] = useState([]);
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -76,12 +77,14 @@ export default function PlantillaClubScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState(formVacio());
   const [guardando, setGuardando] = useState(false);
+  const [noDisponibles, setNoDisponibles] = useState([]);
 
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [u, lista] = await Promise.all([obtenerUsuario(), listarJugadoresApi()]);
+      const [u, lista, nd] = await Promise.all([obtenerUsuario(), listarJugadoresApi(), obtenerNoDisponiblesApi().catch(() => [])]);
       setUsuario(u);
+      setNoDisponibles(nd);
       setPlantilla(lista);
     } catch (err) {
       setError(err.message || 'No se pudo cargar la plantilla');
@@ -196,6 +199,13 @@ export default function PlantillaClubScreen() {
         </Text>
       ) : null}
 
+      {usuario && ['delegado', 'entrenador', 'segundo_entrenador'].includes(usuario.role) && navigation && (
+        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+          <TouchableOpacity style={styles.atajo} onPress={() => navigation.navigate('Enlaces')}><Text style={styles.atajoTexto}>🔗 Enlaces de jugadores</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.atajo} onPress={() => navigation.navigate('Multas')}><Text style={styles.atajoTexto}>💶 Multas</Text></TouchableOpacity>
+        </View>
+      )}
+
       <FlatList
         data={visibles}
         keyExtractor={(item) => String(item.id)}
@@ -228,6 +238,7 @@ export default function PlantillaClubScreen() {
               <Text style={styles.detalleJugador}>
                 {textoPosiciones(item)} {item.pierna ? `· ${item.pierna}` : ''} {item.estado && item.estado !== 'activo' ? `· ${item.estado}` : ''}
               </Text>
+              {noDisponibles.includes(item.id) && <Text style={{ fontSize: 12, fontWeight: '700', color: '#dc2626', marginTop: 2 }}>🩹 No disponible</Text>}
             </View>
             {puedeGestionar && <Text style={styles.flechaEditar}>✏️</Text>}
           </TouchableOpacity>
@@ -329,6 +340,8 @@ export default function PlantillaClubScreen() {
 }
 
 const styles = StyleSheet.create({
+  atajo: { flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  atajoTexto: { fontSize: 12, fontWeight: '700', color: '#374151' },
   lineaPosicion: { fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
   chipBloqueado: { opacity: 0.35 },
   chipTextoBloqueado: { textDecorationLine: 'line-through' },

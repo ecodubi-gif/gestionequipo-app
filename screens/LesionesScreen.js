@@ -100,7 +100,7 @@ export default function LesionesScreen() {
         {activas.map((l) => <Fila key={l.id} l={l} />)}
         {pasadas.length > 0 && <Text style={styles.seccion}>Con alta</Text>}
         {pasadas.map((l) => <Fila key={l.id} l={l} />)}
-        <Text style={styles.nota}>Son datos de salud: solo los ven el entrenador, el segundo y el preparador físico.</Text>
+        <Text style={styles.nota}>Son datos de salud: solo los ven el preparador físico y el delegado. El resto del cuerpo técnico solo ve «no disponible».</Text>
       </ScrollView>
       <TouchableOpacity style={styles.fab} onPress={() => { setErrorForm(''); setForm(vacio()); }}>
         <Text style={styles.fabTexto}>＋ Nueva lesión</Text>

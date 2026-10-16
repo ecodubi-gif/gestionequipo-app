@@ -139,7 +139,7 @@ export default function JugadorPublicoScreen({ token }) {
         <TouchableOpacity style={[styles.enviar, !completo && { opacity: 0.4 }]} disabled={!completo || enviando} onPress={enviarBienestar}>
           <Text style={styles.enviarTexto}>{enviando ? 'Enviando…' : 'Enviar'}</Text>
         </TouchableOpacity>
-        <Text style={styles.privacidad}>Solo lo ven el entrenador, el segundo entrenador y el preparador físico, para cuidar tu carga de trabajo. Si prefieres no contestar, no pasa nada.</Text>
+        <Text style={styles.privacidad}>Solo lo ven el preparador físico y el delegado, para cuidar tu carga de trabajo. Si prefieres no contestar, no pasa nada.</Text>
       </View>
     </ScrollView>
   );

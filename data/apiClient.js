@@ -509,3 +509,29 @@ export async function guardarAlineacionApi(partidoId, momentos) {
   const { data } = await peticion('PUT', `/partidos/${partidoId}/alineacion`, { momentos });
   return data.momentos || [];
 }
+
+// Jugadores no disponibles ahora mismo (lesión sin alta): solo los ids, sin el detalle. Lo puede pedir todo el cuerpo técnico.
+export async function obtenerNoDisponiblesApi() {
+  const { data } = await peticion('GET', '/lesiones/no-disponibles');
+  return data;
+}
+
+// --- Balón parado: biblioteca de jugadas y asignación por partido ---
+export async function listarJugadasAbpApi() {
+  const { data } = await peticion('GET', '/abp');
+  return data || [];
+}
+export async function guardarJugadaAbpApi(jugada) {
+  const cuerpo = { titulo: jugada.titulo, tipo: jugada.tipo, consigna: jugada.consigna || '', elementos: jugada.elementos };
+  const { data } = jugada.id ? await peticion('PUT', `/abp/${jugada.id}`, cuerpo) : await peticion('POST', '/abp', cuerpo);
+  return data;
+}
+export const borrarJugadaAbpApi = (id) => peticion('DELETE', `/abp/${id}`);
+export async function obtenerAsignacionesAbpApi(partidoId) {
+  const { data } = await peticion('GET', `/partidos/${partidoId}/abp`);
+  return data || {};
+}
+export async function guardarAsignacionAbpApi(partidoId, jugadaId, asignacion) {
+  const { data } = await peticion('PUT', `/partidos/${partidoId}/abp/${jugadaId}`, { asig: asignacion.asig, textos: asignacion.textos });
+  return data;
+}

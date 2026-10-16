@@ -32,6 +32,7 @@ import SesionCompletaScreen from './screens/SesionCompletaScreen';
 import SemanaScreen from './screens/SemanaScreen';
 import LesionesScreen from './screens/LesionesScreen';
 import AlineacionScreen from './screens/AlineacionScreen';
+import AbpScreen from './screens/AbpScreen';
 import MultasScreen from './screens/MultasScreen';
 import EntrenamientoDetalleScreen from './screens/EntrenamientoDetalleScreen';
 import JugadorPublicoScreen from './screens/JugadorPublicoScreen';
@@ -108,6 +109,7 @@ function AppConCuenta() {
         <Stack.Screen name="ScoutingHistorial" component={ScoutingHistorialScreen} options={{ title: 'Historial del informe' }} />
         <Stack.Screen name="Semana" component={SemanaScreen} options={{ title: 'Semana' }} />
         <Stack.Screen name="Alineacion" component={AlineacionScreen} options={{ title: 'Alineación y cambios' }} />
+        <Stack.Screen name="Abp" component={AbpScreen} options={{ title: 'Balón parado' }} />
         <Stack.Screen name="Lesiones" component={LesionesScreen} options={{ title: 'Lesiones' }} />
  <Stack.Screen name="Enlaces" component={EnlacesJugadoresScreen} options={{ title: 'Enlaces de jugadores' }} />
         <Stack.Screen name="Bienestar" component={BienestarScreen} options={{ title: 'Bienestar de los jugadores' }} />

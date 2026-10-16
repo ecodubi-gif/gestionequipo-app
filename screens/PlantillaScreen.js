@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { listarJugadoresApi, obtenerConvocatoriaApi, guardarConvocatoriaApi, estadoPublicacionApi, publicarConvocatoriaApi, retirarConvocatoriaApi, obtenerPartidoApi, obtenerUsuario } from '../data/apiClient';
+import { listarJugadoresApi, obtenerConvocatoriaApi, guardarConvocatoriaApi, estadoPublicacionApi, obtenerNoDisponiblesApi, publicarConvocatoriaApi, retirarConvocatoriaApi, obtenerPartidoApi, obtenerUsuario } from '../data/apiClient';
 import { compartirWhatsApp } from '../data/compartir';
 import { textoGrupoConvocatoria } from '../data/jugadorPublico';
 import { diferenciasConvocatoria, resumenCambios, titularesDe, suplentesDe } from '../data/convocatoria';
@@ -30,6 +30,7 @@ export default function PlantillaScreen({ route, navigation }) {
   const [error, setError] = useState('');
   const [publicacion, setPublicacion] = useState(null); // { publicada, vistos, convocados } o null si no se puede gestionar
   const [partido, setPartido] = useState(null);
+  const [noDisponibles, setNoDisponibles] = useState([]);
 
   const cargar = useCallback(async () => {
     setError('');
@@ -39,6 +40,7 @@ export default function PlantillaScreen({ route, navigation }) {
         obtenerConvocatoriaApi(partidoId),
       ]);
       setPlantilla(jugadores);
+      obtenerNoDisponiblesApi().then(setNoDisponibles).catch(() => setNoDisponibles([]));
       try {
         const [u, pub, par] = await Promise.all([obtenerUsuario(), estadoPublicacionApi(partidoId), obtenerPartidoApi(partidoId)]);
         setPublicacion(['entrenador', 'segundo_entrenador'].includes(u?.role) ? pub : null);
@@ -186,6 +188,7 @@ export default function PlantillaScreen({ route, navigation }) {
                     {j.nombre} {j.apellidos}
                   </Text>
                   <Text style={styles.posicionJugador}>{textoPosiciones(j)}</Text>
+                  {noDisponibles.includes(j.id) && <Text style={[styles.avisoJugador, { color: '#dc2626', fontWeight: '700' }]}>🩹 No disponible</Text>}
                   {!!j.readaptacion && <Text style={styles.avisoJugador}>🩹 Readaptación: {j.readaptacion}</Text>}
                   {['lesionado', 'sancionado'].includes((j.estado || '').toLowerCase()) && (
                     <Text style={styles.avisoJugador}>⚠ Figura como {(j.estado || '').toLowerCase()} en la plantilla</Text>
@@ -223,6 +226,11 @@ export default function PlantillaScreen({ route, navigation }) {
       {yaGuardada && (
         <TouchableOpacity style={styles.botonSecundario} onPress={() => navigation.navigate('Alineacion', { partidoId })}>
           <Text style={styles.botonSecundarioTexto}>🧩 Alineación y cambios (sistema, 11 inicial)</Text>
+        </TouchableOpacity>
+      )}
+      {yaGuardada && (
+        <TouchableOpacity style={styles.botonSecundario} onPress={() => navigation.navigate('Abp', { partidoId })}>
+          <Text style={styles.botonSecundarioTexto}>⚽ Balón parado (córners y faltas)</Text>
         </TouchableOpacity>
       )}
 
