@@ -215,7 +215,12 @@ export default function RegistroEventosScreen({ route, navigation }) {
   const minutoMaxEventos = eventos.reduce((m, e) => Math.max(m, e.minuto || 0), 0);
   const minutoActual =
     partido.minuto_final ??
-    (estadoLocal === 'finalizado' ? Math.max(minutoDePartido(), minutoMaxEventos) : minutoDePartido());
+    (estadoLocal === 'finalizado'
+      ? Math.max(minutoDePartido(), minutoMaxEventos)
+      // En el descanso, minutos ya jugados de la primera parte (no "el minuto en curso", que cuenta uno más).
+      : estadoLocal === 'descanso'
+        ? Math.max(Math.floor(segundosParte1 / 60), minutoMaxEventos)
+        : minutoDePartido());
   const golesLocal = eventos.filter((e) => e.tipo === 'tiro' && e.resultado === 'gol' && e.equipo === 'local').length;
   const golesVisitante = eventos.filter((e) => e.tipo === 'tiro' && e.resultado === 'gol' && e.equipo === 'visitante').length;
 
@@ -258,6 +263,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
     confirmar('Fin de la primera parte', '¿Enviar el partido a descanso?', () => {
       pararCronometro();
       setEstadoLocal('descanso');
+      setVista('resumen'); // al descanso se enseña el mismo resumen que al final
     }, 'Sí, descanso');
   };
 
@@ -513,6 +519,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
           golesVisitante={golesVisitante}
           partido={partido}
           finalizado={estadoLocal === 'finalizado'}
+          descanso={estadoLocal === 'descanso'}
           puedeCorregir={puedeGestionar}
           onCorregirMinutoFinal={corregirMinutoFinal}
         />
@@ -803,7 +810,7 @@ function ConvocatoriaTab({ convocatoria, partido, puedeCambiar, onCambiar }) {
   );
 }
 
-function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, golesVisitante, partido, finalizado, puedeCorregir, onCorregirMinutoFinal }) {
+function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, golesVisitante, partido, finalizado, descanso, puedeCorregir, onCorregirMinutoFinal }) {
   const [generandoInforme, setGenerandoInforme] = useState(false);
   const [minutoCorregido, setMinutoCorregido] = useState(minutoActual);
 
@@ -827,10 +834,10 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
     const html = `
         <html>
           <body style="font-family: -apple-system, sans-serif; padding: 24px;">
-            <h2>${partido.equipo_local} ${golesLocal} - ${golesVisitante} ${partido.equipo_visitante}</h2>
+            <h2>${partido.equipo_local} ${golesLocal} - ${golesVisitante} ${partido.equipo_visitante}${descanso ? ' (descanso)' : ''}</h2>
             <p>${partido.lugar} · ${new Date(partido.fecha).toLocaleDateString('es-ES')}</p>
 
-            <h3>Eventos del partido</h3>
+            <h3>${descanso ? 'Eventos de la primera parte' : 'Eventos del partido'}</h3>
             <ul>
               ${eventosOrdenadosPdf.map((e) => `<li>${descripcionEventoPdf(e)}</li>`).join('') || '<li>Sin eventos</li>'}
             </ul>
@@ -843,7 +850,7 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
           </body>
         </html>
       `;
-    await generarDocumento(html, 'el informe');
+    await generarDocumento(html, descanso ? 'el informe del descanso' : 'el informe');
     setGenerandoInforme(false);
   };
 
@@ -865,9 +872,10 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
             </View>
           )}
 
-          {finalizado && (
+          {descanso && <Text style={styles.avisoCorreccion}>Descanso: este es el resumen de la primera parte.</Text>}
+          {(finalizado || descanso) && (
             <TouchableOpacity style={styles.botonInforme} onPress={generarInforme} disabled={generandoInforme}>
-              {generandoInforme ? <ActivityIndicator color="#fff" /> : <Text style={styles.botonInformeTexto}>📄 Informe final (eventos + minutos)</Text>}
+              {generandoInforme ? <ActivityIndicator color="#fff" /> : <Text style={styles.botonInformeTexto}>{descanso ? '📄 Informe del descanso (eventos + minutos)' : '📄 Informe final (eventos + minutos)'}</Text>}
             </TouchableOpacity>
           )}
 
