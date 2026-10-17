@@ -25,6 +25,18 @@ const POSICIONES = {
   '5-3-2': [[0.5, 0.92], [0.1, 0.659], [0.271, 0.795], [0.5, 0.828], [0.748, 0.801], [0.9, 0.66], [0.277, 0.514], [0.507, 0.576], [0.757, 0.509], [0.263, 0.21], [0.741, 0.214]],
 };
 
+// Variantes de un mismo sistema (se guardan con el mismo nombre, solo cambian los puntos).
+export const VARIANTES = { '4-2-3-1 plano': { sistema: '4-2-3-1', puntos: [[0.5, 0.92], [0.1, 0.658], [0.366, 0.787], [0.641, 0.786], [0.9, 0.635], [0.36, 0.53], [0.64, 0.53], [0.13, 0.4], [0.5, 0.4], [0.87, 0.4], [0.5, 0.198]] } };
+export const OPCIONES_SISTEMA = SISTEMAS.flatMap((s) => [s, ...Object.keys(VARIANTES).filter((v) => VARIANTES[v].sistema === s)]);
+export const sistemaDeOpcion = (o) => (VARIANTES[o] ? VARIANTES[o].sistema : o);
+// Qué opción está activa en un momento: la variante si los extremos están a la altura del mediapunta.
+export function opcionActiva(m) {
+  for (const v of Object.keys(VARIANTES)) if (m.sistema === VARIANTES[v].sistema) {
+    const h = m.huecos || []; if (h.length === 11 && Math.abs(h[7].y - h[8].y) < 0.05 && Math.abs(h[9].y - h[8].y) < 0.05) return v;
+  }
+  return m.sistema;
+}
+
 export const MAX_MOMENTOS = 12;
 
 const redondear = (n) => Math.round(n * 1000) / 1000;
@@ -62,7 +74,7 @@ export function gruposSistema(sistema) {
 
 // Puntos de los 11 huecos de un sistema (el portero primero).
 export function huecosDeSistema(sistema) {
-  const tabla = POSICIONES[lineasDe(sistema).join('-')];
+  const tabla = VARIANTES[sistema] ? VARIANTES[sistema].puntos : POSICIONES[lineasDe(sistema).join('-')];
   if (tabla) return tabla.map(([x, y]) => ({ x, y })).map((p) => ({ ...p, jugador_id: null }));
   const lineas = lineasDe(sistema);
   const pts = [{ x: 0.5, y: 0.92 }];
@@ -119,7 +131,7 @@ export function cambiarSistema(m, sistema) {
   const nuevos = huecosDeSistema(sistema);
   const ordenNuevo = orden(nuevos);
   ordenNuevo.forEach((o, k) => { nuevos[o.i].jugador_id = jugadores[k] ?? null; });
-  return { ...m, sistema, huecos: nuevos };
+  return { ...m, sistema: sistemaDeOpcion(sistema), huecos: nuevos };
 }
 
 // Poner a un jugador en un hueco: si ya estaba en otro, se intercambian; si estaba en el banquillo, el que ocupaba el hueco pasa al banquillo.
@@ -200,7 +212,9 @@ const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': 
 
 // Hoja imprimible de un momento (A4 vertical): el campo con cada jugador en su sitio, los cambios marcados y los suplentes.
 // jugadores: { [id]: { dorsal, nombre (corto) } }
-export function htmlMomento(momento, anterior, jugadores, { equipo = '', rival = '', categoria = '2º ANDALUZA SENIOR' } = {}, saltoDePagina = false) {
+export function htmlMomento(momento, anterior, jugadores, { equipo = '', rival = '', local = '', visitante = '', categoria = '2º ANDALUZA SENIOR' } = {}, saltoDePagina = false) {
+  // Primero el equipo que juega en casa y después el visitante (si se dan los dos lados); si no, equipo vs rival.
+  const enfrentamiento = local && visitante ? `${esc(local)} vs ${esc(visitante)}` : `${esc(equipo)}${rival ? ' vs ' + esc(rival) : ''}`;
   const W = 420; const H = 560;
   const nom = (id) => (jugadores[id] ? jugadores[id].nombre : '—');
   const dor = (id) => (jugadores[id] && jugadores[id].dorsal != null && jugadores[id].dorsal !== '' ? jugadores[id].dorsal : '');
@@ -218,12 +232,13 @@ export function htmlMomento(momento, anterior, jugadores, { equipo = '', rival =
   const frases = frasesDeCambios(anterior, momento, nom);
   const convocadosEnCampo = new Set(momento.huecos.map((h) => h.jugador_id));
   const suplentes = Object.keys(jugadores).map(Number).filter((id) => !convocadosEnCampo.has(id));
-  return `<div style="${saltoDePagina ? 'page-break-before: always;' : ''}font-family:-apple-system,Arial,sans-serif;padding:14px;max-width:${W + 28}px;margin:auto">
+  return `<div style="${saltoDePagina ? 'page-break-before: always;' : ''}font-family:-apple-system,Arial,sans-serif;padding:14px;max-width:${W + 28}px;margin:auto;-webkit-print-color-adjust:exact;print-color-adjust:exact">
   <div style="background:#7f1d1d;color:#fff;padding:8px 12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
-    <b style="font-size:16px">${esc(categoria)}</b><span style="font-size:13px">${esc(equipo)}${rival ? ' vs ' + esc(rival) : ''}</span></div>
+    <b style="font-size:16px">${esc(categoria)}</b><span style="font-size:13px">${enfrentamiento}</span></div>
   <h2 style="margin:10px 0 2px;font-size:20px">${esc(momento.etiqueta)}${momento.minuto != null ? ` · ${momento.minuto}'` : ''} <span style="font-size:14px;color:#6b7280">${esc(momento.sistema)}</span></h2>
-  <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="background:#4d9a3b;border-radius:8px;display:block">
+  <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="border-radius:8px;display:block">
     <defs><marker id="p" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#f59e0b"/></marker></defs>
+    <rect x="0" y="0" width="${W}" height="${H}" rx="8" fill="#4d9a3b"/>
     <rect x="6" y="6" width="${W - 12}" height="${H - 12}" fill="none" stroke="#fff" stroke-width="2"/>
     <line x1="6" y1="${H / 2}" x2="${W - 6}" y2="${H / 2}" stroke="#fff" stroke-width="2"/>
     <circle cx="${W / 2}" cy="${H / 2}" r="48" fill="none" stroke="#fff" stroke-width="2"/>

@@ -1,3 +1,4 @@
+import { normalizarCantera, etiquetaCantera } from '../data/cantera';
 import React, { useCallback, useState } from 'react';
 import {
   View,
@@ -194,7 +195,7 @@ export default function PlantillaScreen({ route, navigation }) {
                     {j.dorsal ? `#${j.dorsal} ` : ''}
                     {j.nombre} {j.apellidos}
                   </Text>
-                  <Text style={styles.posicionJugador}>{textoPosiciones(j)}</Text>
+                  <Text style={styles.posicionJugador}>{textoPosiciones(j)}{normalizarCantera(j.cantera) ? ` · ${etiquetaCantera(j.cantera)}` : ''}</Text>
                   {!!tarjetas[j.id] && tarjetas[j.id].sancionado && <Text style={[styles.avisoJugador, { color: '#dc2626', fontWeight: '700' }]}>⛔ Sancionado: {tarjetas[j.id].motivo}</Text>}
                   {!!tarjetas[j.id] && tarjetas[j.id].apercibido && <Text style={[styles.avisoJugador, { color: '#b45309', fontWeight: '700' }]}>🟨 Apercibido: una amarilla más cumple ciclo</Text>}
                   {noDisponibles.includes(j.id) && <Text style={[styles.avisoJugador, { color: '#dc2626', fontWeight: '700' }]}>🩹 No disponible</Text>}

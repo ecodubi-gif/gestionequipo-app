@@ -214,7 +214,7 @@ export function htmlJugada(j, asignacion, jugadores, { equipo = '', rival = '', 
     const marca = e.marca || tx || ES_DEFENSIVA(j.tipo) ? ` · marca a <b>${esc(tx || '—')}</b>` : '';
     return `<li>${jug ? `${esc(jug.dorsal != null && jug.dorsal !== '' ? `#${jug.dorsal} ` : '')}${esc(jug.nombre)}` : '<span style="color:#9ca3af">puesto ' + e.n + ' sin asignar</span>'}${marca}</li>`;
   }).join('');
-  return `<div style="${saltoDePagina ? 'page-break-before: always;' : ''}font-family:-apple-system,Arial,sans-serif;padding:14px;max-width:790px;margin:auto">
+  return `<div style="${saltoDePagina ? 'page-break-before: always;' : ''}font-family:-apple-system,Arial,sans-serif;padding:14px;max-width:790px;margin:auto;-webkit-print-color-adjust:exact;print-color-adjust:exact">
   <div style="background:#7f1d1d;color:#fff;padding:8px 12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
     <b style="font-size:16px">${esc(categoria)}</b><span style="font-size:13px">${esc(equipo)}${rival ? ' vs ' + esc(rival) : ''}</span></div>
   <h2 style="margin:10px 0 2px;font-size:20px">${esc(j.titulo)} <span style="font-size:13px;color:#6b7280">${esc(TIPOS[j.tipo] || '')}</span></h2>

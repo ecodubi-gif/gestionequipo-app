@@ -467,19 +467,19 @@ export default function RegistroEventosScreen({ route, navigation }) {
 
       <View style={styles.selectorVista}>
         <TouchableOpacity style={[styles.chipVista, vista === 'eventos' && styles.chipVistaActivo]} onPress={() => setVista('eventos')}>
-          <Text style={[styles.chipVistaTexto, vista === 'eventos' && styles.chipVistaTextoActivo]}>Eventos</Text>
+          <Text style={[styles.chipVistaTexto, vista === 'eventos' && styles.chipVistaTextoActivo]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Eventos</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.chipVista, vista === 'convocatoria' && styles.chipVistaActivo]} onPress={() => setVista('convocatoria')}>
-          <Text style={[styles.chipVistaTexto, vista === 'convocatoria' && styles.chipVistaTextoActivo]}>Convocatoria</Text>
+          <Text style={[styles.chipVistaTexto, vista === 'convocatoria' && styles.chipVistaTextoActivo]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Convocatoria</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.chipVista} onPress={() => navigation.navigate('Alineacion', { partidoId })}>
-          <Text style={styles.chipVistaTexto}>Alineación</Text>
+          <Text style={styles.chipVistaTexto} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>Alineación</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.chipVista} onPress={() => navigation.navigate('Abp', { partidoId })}>
-          <Text style={styles.chipVistaTexto}>ABP</Text>
+          <Text style={styles.chipVistaTexto} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>ABP</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.chipVista, vista === 'resumen' && styles.chipVistaActivo]} onPress={() => setVista('resumen')}>
-          <Text style={[styles.chipVistaTexto, vista === 'resumen' && styles.chipVistaTextoActivo]}>Resumen</Text>
+          <Text style={[styles.chipVistaTexto, vista === 'resumen' && styles.chipVistaTextoActivo]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>Resumen</Text>
         </TouchableOpacity>
       </View>
 
@@ -974,10 +974,10 @@ const styles = StyleSheet.create({
   botonEvento: { alignItems: 'center', width: '16%', marginBottom: 6 },
   botonEventoEmoji: { fontSize: 22 },
   botonEventoTexto: { fontSize: 10, color: '#374151', marginTop: 2, fontWeight: '600', textAlign: 'center' },
-  selectorVista: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 10 },
-  chipVista: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center' },
+  selectorVista: { flexDirection: 'row', gap: 4, paddingHorizontal: 12, paddingTop: 10 },
+  chipVista: { flex: 1, minWidth: 0, paddingVertical: 9, paddingHorizontal: 2, borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   chipVistaActivo: { backgroundColor: '#111827', borderColor: '#111827' },
-  chipVistaTexto: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  chipVistaTexto: { fontSize: 12, fontWeight: '600', color: '#374151', textAlign: 'center' },
   chipVistaTextoActivo: { color: '#fff' },
   lista: { flex: 1, paddingHorizontal: 16, paddingTop: 10 },
   listaVacia: { textAlign: 'center', color: '#9ca3af', marginTop: 30 },

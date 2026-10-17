@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { confirmar } from '../data/confirmar';
+import { CATEGORIAS_CANTERA, normalizarCantera, etiquetaCantera } from '../data/cantera';
 import { GRUPOS_POSICIONES, POSICIONES, textoPosiciones } from '../data/posiciones';
 import {
   listarJugadoresApi,
@@ -29,7 +30,7 @@ const ROLES_GESTION = ['delegado'];
 const PIERNAS = ['Diestro', 'Zurdo', 'Ambidiestro'];
 
 function formVacio() {
-  return { id: null, dorsal: '', nombre: '', apellidos: '', apodo: '', posicion: '', posicion_secundaria: '', pierna: '', estado: 'activo' };
+  return { id: null, dorsal: '', nombre: '', apellidos: '', apodo: '', posicion: '', posicion_secundaria: '', pierna: '', estado: 'activo', cantera: '' };
 }
 
 function SelectorPosicion({ valor, onCambiar, excluida, permitirNinguna }) {
@@ -117,6 +118,7 @@ export default function PlantillaClubScreen({ navigation }) {
       posicion_secundaria: jugador.posicion_secundaria || '',
       pierna: jugador.pierna || '',
       estado: jugador.estado || 'activo',
+      cantera: normalizarCantera(jugador.cantera) || '',
     });
     setModalVisible(true);
   };
@@ -140,6 +142,7 @@ export default function PlantillaClubScreen({ navigation }) {
       posicion_secundaria: form.posicion_secundaria || null,
       pierna: form.pierna || null,
       estado: form.estado || null,
+      cantera: normalizarCantera(form.cantera),
     };
     try {
       if (form.id) {
@@ -239,6 +242,7 @@ export default function PlantillaClubScreen({ navigation }) {
               <Text style={styles.detalleJugador}>
                 {textoPosiciones(item)} {item.pierna ? `· ${item.pierna}` : ''} {item.estado && item.estado !== 'activo' ? `· ${item.estado}` : ''}
               </Text>
+              {!!normalizarCantera(item.cantera) && <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803d', marginTop: 2 }}>{etiquetaCantera(item.cantera)}</Text>}
               {noDisponibles.includes(item.id) && <Text style={{ fontSize: 12, fontWeight: '700', color: '#dc2626', marginTop: 2 }}>🩹 No disponible</Text>}
             </View>
             {puedeGestionar && <Text style={styles.flechaEditar}>✏️</Text>}
@@ -302,6 +306,18 @@ export default function PlantillaClubScreen({ navigation }) {
                   onPress={() => setForm((f) => ({ ...f, pierna: p }))}
                 >
                   <Text style={[styles.chipTexto, form.pierna === p && styles.chipTextoActivo]}>{p}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.etiqueta}>Procede de la cantera</Text>
+            <View style={styles.filaChips}>
+              <TouchableOpacity style={[styles.chip, !form.cantera && styles.chipActivo]} onPress={() => setForm((f) => ({ ...f, cantera: '' }))}>
+                <Text style={[styles.chipTexto, !form.cantera && styles.chipTextoActivo]}>No</Text>
+              </TouchableOpacity>
+              {CATEGORIAS_CANTERA.map((c) => (
+                <TouchableOpacity key={c} style={[styles.chip, form.cantera === c && styles.chipActivo]} onPress={() => setForm((f) => ({ ...f, cantera: c }))}>
+                  <Text style={[styles.chipTexto, form.cantera === c && styles.chipTextoActivo]}>{c.charAt(0).toUpperCase() + c.slice(1)}</Text>
                 </TouchableOpacity>
               ))}
             </View>

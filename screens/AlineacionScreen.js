@@ -5,7 +5,7 @@ import { confirmar } from '../data/confirmar';
 import { generarDocumento } from '../data/compartir';
 import { obtenerPartidoApi, obtenerConvocatoriaApi, obtenerAlineacionApi, guardarAlineacionApi, obtenerNoDisponiblesApi, obtenerUsuario } from '../data/apiClient';
 import {
-  SISTEMAS, MAX_MOMENTOS, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco,
+  OPCIONES_SISTEMA, opcionActiva, MAX_MOMENTOS, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco,
   etiquetasSistema, frasesDeCambios, limpiarMomentos, htmlMomento,
 } from '../data/alineacion';
 
@@ -86,7 +86,8 @@ export default function AlineacionScreen({ route }) {
   };
 
   const jugadoresImpresion = Object.fromEntries(convocados.map((j) => [j.id, { dorsal: j.dorsal, nombre: corto(j) }]));
-  const datosPartido = { equipo: 'C.D. Herrera', rival: partido ? (partido.es_local ? partido.equipo_visitante : partido.equipo_local) : '' };
+  // En la cabecera del PDF, primero el que juega en casa.
+  const datosPartido = { equipo: 'C.D. Herrera', rival: partido ? (partido.es_local ? partido.equipo_visitante : partido.equipo_local) : '', local: partido ? partido.equipo_local : '', visitante: partido ? partido.equipo_visitante : '' };
   const imprimir = (todos) => {
     const lista = todos ? momentos : [activo];
     const html = `<html><body>${lista.map((m, k) => htmlMomento(m, momentos[momentos.findIndex((x) => x.id === m.id) - 1] || null, jugadoresImpresion, datosPartido, k > 0)).join('')}</body></html>`;
@@ -131,9 +132,9 @@ export default function AlineacionScreen({ route }) {
 
         {puedeEditar && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-            {SISTEMAS.map((s) => (
-              <TouchableOpacity key={s} style={[styles.chipSistema, s === activo.sistema && styles.chipSistemaActivo]} onPress={() => { cambiarActivo((m) => cambiarSistema(m, s)); setSeleccion(null); }}>
-                <Text style={[styles.chipTexto, s === activo.sistema && { color: '#fff' }]}>{s}</Text>
+            {OPCIONES_SISTEMA.map((s) => (
+              <TouchableOpacity key={s} style={[styles.chipSistema, s === opcionActiva(activo) && styles.chipSistemaActivo]} onPress={() => { cambiarActivo((m) => cambiarSistema(m, s)); setSeleccion(null); }}>
+                <Text style={[styles.chipTexto, s === opcionActiva(activo) && { color: '#fff' }]}>{s}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>

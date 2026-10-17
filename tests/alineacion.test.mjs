@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { SISTEMAS, sistemaValido, lineasDe, huecosDeSistema, etiquetasSistema, gruposSistema, rellenarHuecos, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco, cambiosEntre, frasesDeCambios, limpiarMomentos, htmlMomento } from '../data/alineacion';
+import { SISTEMAS, opcionActiva, sistemaValido, lineasDe, huecosDeSistema, etiquetasSistema, gruposSistema, rellenarHuecos, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco, cambiosEntre, frasesDeCambios, limpiarMomentos, htmlMomento } from '../data/alineacion';
 let n = 0; const t = (_, f) => { f(); n++; };
 t('los 15 sistemas suman 11 con el portero', () => { assert.equal(SISTEMAS.length, 15); for (const s of SISTEMAS) { assert.ok(sistemaValido(s), s); assert.equal(huecosDeSistema(s).length, 11, s); assert.equal(etiquetasSistema(s).length, 11, s); assert.equal(gruposSistema(s).length, 11, s); } });
 t('sistemas inválidos', () => { for (const s of ['', '4-4', '4-4-3', '9', '4-4-2-1-1-1', '0-5-5']) assert.ok(!sistemaValido(s), s); });
@@ -64,5 +64,24 @@ t('parejas por dentro, no pegadas a banda (4-2-3-1, 4-2-2-2, 4-2-1-3)', () => {
   for (const sis of ['4-2-3-1', '4-2-2-2', '4-2-1-3']) { const h = huecosDeSistema(sis); const l = lineasDe(sis); let i = 1 + l[0]; for (const n of l.slice(1, -1)) { const fila = h.slice(i, i + n); if (n === 2) assert.ok(fila.every((p) => p.x >= 0.25 && p.x <= 0.75), sis); i += n; } }
   const h = huecosDeSistema('4-2-3-1'); assert.ok(h[7].x >= 0.2 && h[9].x <= 0.8);
   const g = huecosDeSistema('4-2-2-2'); assert.ok(g[9].x >= 0.3 && g[10].x <= 0.7);
+});
+t('PDF: primero el equipo de casa y luego el visitante', () => {
+  const m = momentoInicial('4-3-3', []);
+  const fuera = htmlMomento(m, null, {}, { equipo: 'C.D. Herrera', rival: 'Morón', local: 'Morón', visitante: 'C.D. Herrera' });
+  assert.ok(fuera.includes('Morón vs C.D. Herrera') && !fuera.includes('C.D. Herrera vs Morón'));
+  const casa = htmlMomento(m, null, {}, { equipo: 'C.D. Herrera', rival: 'Morón', local: 'C.D. Herrera', visitante: 'Morón' });
+  assert.ok(casa.includes('C.D. Herrera vs Morón'));
+  assert.ok(htmlMomento(m, null, {}, { equipo: 'A', rival: 'B' }).includes('A vs B'));
+  assert.ok(htmlMomento(m, null, {}, { local: 'X<Y', visitante: 'Z' }).includes('X&lt;Y vs Z'));
+});
+t('PDF: el campo es verde dentro del dibujo y fuerza los colores al imprimir', () => {
+  const h = htmlMomento(momentoInicial('4-3-3', []), null, {}, {});
+  assert.ok(/<rect x="0" y="0" width="420" height="560" rx="8" fill="#4d9a3b"/.test(h)); assert.ok(!/<svg[^>]*background/.test(h)); assert.ok(h.includes('print-color-adjust:exact'));
+});
+t('4-2-3-1 plano: extremos abiertos a la altura del mediapunta, se guarda como 4-2-3-1', () => {
+  const m = cambiarSistema(momentoInicial('4-3-3', []), '4-2-3-1 plano');
+  assert.equal(m.sistema, '4-2-3-1'); assert.equal(opcionActiva(m), '4-2-3-1 plano');
+  assert.ok(m.huecos[7].x <= 0.15 && m.huecos[9].x >= 0.85 && m.huecos[7].y === m.huecos[8].y);
+  assert.equal(opcionActiva(cambiarSistema(m, '4-2-3-1')), '4-2-3-1'); assert.ok(sistemaValido(m.sistema));
 });
 console.log(`alineacion: ${n} pruebas OK`);

@@ -27,6 +27,9 @@ Marca con ✔ lo que hayas ejecutado y comprobado (todas las líneas "OK").
 7. [ ] `aplicar-preventivo-opcional.sh` — preventivo y movilidad apagables por sesión
 8. [ ] `aplicar-tarjetas.sh` — ajustes manuales de tarjetas y sanciones
 9. [ ] `aplicar-resumen-jugador.sh` — resumen del último partido en la página del jugador (necesita el 3)
+10. [ ] `aplicar-cantera.sh` — jugadores de cantera (infantil, cadete, juvenil, filial)
+
+Todo de una vez: `bash /root/aplicar-todo.sh` (los ejecuta en este orden y se para si uno falla; todos se pueden repetir).
 
 Pendientes de antes (confirmar si se ejecutaron): `aplicar-rueda-fisica.sh`, `aplicar-rueda-opcional.sh`, `aplicar-scouting.sh`, `aplicar-campos-herrera.sh`, `borrar-partido-alhaurin.sh`, `limpiar-equipo-anterior.sh`, `resetear-clave.sh`, `aplicar-correo.sh`.
 
