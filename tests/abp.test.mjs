@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ES_DEFENSIVA, moverAsignado, conPosiciones, numeroRival, limpiarJugada, jugadoresDe, siguienteN, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca, duplicar, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, partirTexto, formasJugada, elementoEn, htmlJugada, MAX_ELEMENTOS, TIPOS } from '../data/abp';
+import { ES_DEFENSIVA, FILAS_MARCAJES, claveMarcaje, moverAsignado, conPosiciones, numeroRival, limpiarJugada, jugadoresDe, siguienteN, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca, duplicar, asignacionVacia, asignar, ponerTexto, limpiarAsignacion, partirTexto, formasJugada, elementoEn, htmlJugada, MAX_ELEMENTOS, TIPOS } from '../data/abp';
 let n = 0; const t = (_, f) => { f(); n++; };
 const base = { id: 1, titulo: 'Córner', tipo: 'corner_of', consigna: 'x', elementos: [
   { id: 'p1', k: 'jugador', n: 1, x: 0.5, y: 0.5 }, { id: 'p2', k: 'jugador', n: 2, x: 0.3, y: 0.3, marca: true }, { id: 'r1', k: 'rival', x: 0.7, y: 0.4 },
@@ -54,7 +54,9 @@ t('las 9 jugadas de partida son válidas', () => {
   const semilla = JSON.parse(readFileSync(new URL('./abp_semilla.json', import.meta.url), 'utf8'));
   assert.equal(semilla.length, 9);
   for (const s of semilla) { const j = limpiarJugada(s); assert.ok(j, s.titulo); assert.equal(j.elementos.length, s.elementos.length, s.titulo); assert.ok(TIPOS[s.tipo], s.titulo); assert.ok(jugadoresDe(j).length >= 10, s.titulo); const f = formasJugada(j, { ancho: 585 }); assert.ok(f.formas.length > 30); }
-  assert.equal(semilla.filter((s) => s.elementos.some((e) => e.marca)).length, 2);
+  assert.equal(semilla.filter((s) => s.elementos.some((e) => e.marca)).length, 0);
+  for (const s of semilla.filter((x) => x.tipo === 'corner_of' || x.tipo === 'falta_of')) assert.equal(s.elementos.filter((e) => e.k === 'jugador').length, 10, s.titulo);
+  assert.deepEqual(semilla.filter((s) => s.elementos.some((e) => e.k === 'marcajes')).map((s) => s.tipo).sort(), ['corner_def', 'falta_def']);
 });
 t('rivales con número y marca a cualquier jugador', () => {
   let j = anadirElemento(base, 'rival', { x: 0.2, y: 0.2, n: 9 }); assert.equal(j.elementos.at(-1).n, 9);
@@ -67,8 +69,23 @@ t('rivales con número y marca a cualquier jugador', () => {
 });
 t('defensivas: todos con su recuadro; ofensivas solo los marcados; candado', () => {
   const cuenta = (j, b = {}) => formasJugada(j, { bloqueados: b }).formas.filter((f) => f.k === 'text' && / marca a /.test(f.t)).length;
-  assert.equal(cuenta({ ...base, tipo: 'corner_of' }), 1); assert.equal(cuenta({ ...base, tipo: 'corner_def' }), 2); assert.equal(cuenta({ ...base, tipo: 'barrera' }), 2); assert.equal(cuenta({ ...base, tipo: 'falta_def' }), 2);
-  assert.ok(ES_DEFENSIVA('barrera') && !ES_DEFENSIVA('falta_of'));
+  assert.equal(cuenta({ ...base, tipo: 'corner_of' }), 1); assert.equal(cuenta({ ...base, tipo: 'corner_def' }), 1); assert.equal(cuenta({ ...base, tipo: 'barrera' }), 1); assert.equal(cuenta({ ...base, tipo: 'falta_def' }), 1);
+  assert.ok(ES_DEFENSIVA('corner_def') && ES_DEFENSIVA('falta_def') && !ES_DEFENSIVA('barrera') && !ES_DEFENSIVA('falta_of'));
   assert.ok(formasJugada(base, { bloqueados: { p1: true } }).formas.some((f) => f.t === '🔒')); assert.ok(!formasJugada(base).formas.some((f) => f.t === '🔒'));
+});
+t('panel de marcajes: círculo con nuestro número y recuadro amarillo con el del rival, 5 filas editables', () => {
+  let j = limpiarJugada({ id: 1, titulo: 'D', tipo: 'corner_def', elementos: [{ id: 'p1', k: 'jugador', n: 1, x: 0.5, y: 0.2 }] });
+  j = anadirElemento(j, 'marcajes', { x: 0.1, y: 0.5 }); j = anadirElemento(j, 'marcajes', { x: 0.3, y: 0.5 });
+  assert.equal(j.elementos.filter((e) => e.k === 'marcajes').length, 1); const id = j.elementos.find((e) => e.k === 'marcajes').id;
+  assert.equal(limpiarJugada(j).elementos.filter((e) => e.k === 'marcajes').length, 1);
+  const vacio = formasJugada(j); const caja = (f) => f.formas.filter((x) => x.k === 'rect' && x.stroke === '#facc15').length;
+  assert.equal(caja(vacio), FILAS_MARCAJES);
+  let a = asignacionVacia(); a = ponerTexto(a, claveMarcaje(id, 'n', 1), '16'); a = ponerTexto(a, claveMarcaje(id, 'r', 1), '9'); a = ponerTexto(a, claveMarcaje(id, 'n', 5), 'x7');
+  a = limpiarAsignacion(a, j, []); assert.equal(a.textos[claveMarcaje(id, 'n', 1)], '16'); assert.equal(a.textos[claveMarcaje(id, 'r', 1)], '9'); assert.equal(a.textos[claveMarcaje(id, 'n', 5)], '7');
+  const f = formasJugada(j, { asignacion: a }); assert.ok(f.formas.some((x) => x.t === '16') && f.formas.some((x) => x.t === '9'));
+  assert.ok(!f.formas.some((x) => / marca a /.test(x.t || '')));
+  assert.equal(elementoEn(j, 0.1 * 585, 0.5 * 364 * 1, 585), id);
+  const h = htmlJugada(j, a, {}, {}); assert.ok(h.includes('<b>16</b> marca al <b>9</b> rival'));
+  assert.equal(moverElemento(j, id, 0.2, 0.4).elementos.find((e) => e.id === id).x, 0.2);
 });
 console.log(`abp: ${n} pruebas OK`);

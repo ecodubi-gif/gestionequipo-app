@@ -11,8 +11,10 @@ export const MAX_ELEMENTOS = 80;
 export const TIPOS = {
   corner_of: 'Córner ofensivo', falta_of: 'Falta ofensiva', corner_def: 'Córner defensivo', falta_def: 'Falta defensiva', barrera: 'Barrera', otro: 'Otra jugada',
 };
-// En las jugadas defensivas todos los jugadores llevan su recuadro amarillo «N marca a …».
-export const ES_DEFENSIVA = (tipo) => tipo === 'corner_def' || tipo === 'falta_def' || tipo === 'barrera';
+// En córners y faltas defensivas hay un panel de marcajes: 5 filas con un círculo (nuestro número) y un recuadro amarillo (número del rival).
+export const FILAS_MARCAJES = 5;
+export const ES_DEFENSIVA = (tipo) => tipo === 'corner_def' || tipo === 'falta_def';
+export const claveMarcaje = (id, lado, i) => `${id}${lado}${i}`; // lado: 'n' (nuestro) | 'r' (rival)
 export const ESTILOS_FLECHA = { pase: { etiqueta: 'Balón', color: '#1e3a8a', dash: null }, carrera: { etiqueta: 'Jugador', color: '#facc15', dash: '6,4' } };
 
 const redondear = (n) => Math.round(n * 1000) / 1000;
@@ -30,6 +32,7 @@ export function limpiarJugada(j) {
     const id = e.id.slice(0, 20);
     if (e.k === 'jugador' && Number.isInteger(e.n) && e.n >= 1 && e.n <= 30) elementos.push({ id, k: 'jugador', n: e.n, ...punto(e), ...(e.marca ? { marca: true } : {}) });
     else if (e.k === 'rival') elementos.push({ id, k: 'rival', ...(Number.isInteger(e.n) && e.n >= 1 && e.n <= 30 ? { n: e.n } : {}), ...punto(e) });
+    else if (e.k === 'marcajes' && !elementos.some((x) => x.k === 'marcajes')) elementos.push({ id, k: 'marcajes', ...punto(e) });
     else if (e.k === 'balon') elementos.push({ id, k: 'balon', ...punto(e) });
     else if (e.k === 'flecha' && ESTILOS_FLECHA[e.estilo]) elementos.push({ id, k: 'flecha', estilo: e.estilo, a: punto(e.a), b: punto(e.b) });
     else if (e.k === 'nota') elementos.push({ id, k: 'nota', t: String(e.t || '').slice(0, 120), ...punto(e) });
@@ -51,6 +54,7 @@ export function anadirElemento(j, k, datos = {}) {
   if (k === 'jugador') e = { id: nuevoId(j, 'p'), k, n: siguienteN(j), x, y };
   else if (k === 'rival') e = { id: nuevoId(j, 'r'), k, x, y, ...(datos.n ? { n: datos.n } : {}) };
   else if (k === 'balon') e = { id: nuevoId(j, 'b'), k, x, y };
+  else if (k === 'marcajes') { if (j.elementos.some((q) => q.k === 'marcajes')) return j; e = { id: nuevoId(j, 'm'), k, x: redondear(limitar(datos.x ?? 0.09)), y: redondear(limitar(datos.y ?? 0.5)) }; }
   else if (k === 'nota') e = { id: nuevoId(j, 'n'), k, t: String(datos.t || 'Nota').slice(0, 120), x, y };
   else if (k === 'flecha') e = { id: nuevoId(j, 'f'), k, estilo: ESTILOS_FLECHA[datos.estilo] ? datos.estilo : 'pase', a: punto(datos.a), b: punto(datos.b) };
   else return j;
@@ -91,9 +95,11 @@ export const conPosiciones = (j, a) => ((a && a.pos && Object.keys(a.pos).length
 // Deja solo lo que existe en la jugada y entre los convocados.
 export function limpiarAsignacion(a, j, convocadosIds) {
   const ids = new Set(j.elementos.filter((e) => e.k === 'jugador').map((e) => e.id));
+  const clavesMarcaje = new Set();
+  for (const e of j.elementos.filter((x) => x.k === 'marcajes')) for (let i = 1; i <= FILAS_MARCAJES; i++) { clavesMarcaje.add(claveMarcaje(e.id, 'n', i)); clavesMarcaje.add(claveMarcaje(e.id, 'r', i)); }
   const asig = {}; const textos = {}; const pos = {}; const usados = new Set();
   for (const [k, v] of Object.entries((a && a.asig) || {})) if (ids.has(k) && convocadosIds.includes(v) && !usados.has(v)) { asig[k] = v; usados.add(v); }
-  for (const [k, v] of Object.entries((a && a.textos) || {})) { const d = typeof v === 'string' ? v.replace(/\D/g, '').slice(0, 2) : ''; if (ids.has(k) && d) textos[k] = d; }
+  for (const [k, v] of Object.entries((a && a.textos) || {})) { const d = typeof v === 'string' ? v.replace(/\D/g, '').slice(0, 2) : ''; if ((ids.has(k) || clavesMarcaje.has(k)) && d) textos[k] = d; }
   for (const [k, v] of Object.entries((a && a.pos) || {})) if (ids.has(k) && v && Number.isFinite(Number(v.x)) && Number.isFinite(Number(v.y))) pos[k] = { x: redondear(limitar(v.x)), y: redondear(limitar(v.y)) };
   return { asig, textos, pos };
 }
@@ -120,6 +126,15 @@ const cajaNota = (e, ancho) => {
   const m = medidas(ancho); const lineas = partirTexto(e.t, Math.max(8, Math.floor(m.notaAncho / (m.fuente * 0.56))));
   return { lineas, w: m.notaAncho, h: lineas.length * m.linea + 8 * m.e, x: e.x * ancho - m.notaAncho / 2, y: e.y * ancho * PROPORCION - (lineas.length * m.linea + 8 * m.e) / 2 };
 };
+
+// Panel de marcajes: (x, y) es el centro del círculo de la primera fila; las filas bajan de una en una.
+function geometriaMarcajes(e, ancho) {
+  const m = medidas(ancho); const alto = ancho * PROPORCION;
+  const radio = 17 * m.e; const paso = 0.113 * alto; const anchoCaja = 88 * m.e; const altoCaja = 26 * m.e; const hueco = 8 * m.e;
+  const cx = e.x * ancho; const filas = Array.from({ length: FILAS_MARCAJES }, (_, i) => ({ cx, cy: e.y * alto + i * paso, bx: cx + radio + hueco }));
+  const caja = { x: cx - radio - 4, y: filas[0].cy - radio - 4, w: radio * 2 + hueco + anchoCaja + 8, h: paso * (FILAS_MARCAJES - 1) + radio * 2 + 8 };
+  return { radio, anchoCaja, altoCaja, filas, caja };
+}
 
 export function formasJugada(jOriginal, { ancho = 585, asignacion = asignacionVacia(), nombres = {}, dorsales = {}, seleccion = null, bloqueados = {} } = {}) {
   const j = conPosiciones(jOriginal, asignacion);
@@ -165,11 +180,22 @@ export function formasJugada(jOriginal, { ancho = 585, asignacion = asignacionVa
     if (bloqueados[e.id]) f.push({ k: 'text', x: x + m.radio * 0.55, y: y - m.radio * 0.55, t: '🔒', size: m.fuente * 1.1, fill: '#111827', anchor: 'middle' });
     if (nom) f.push({ k: 'text', x, y: y + m.radio + m.fuente + 1, t: nom, size: m.fuente, fill: '#ffffff', anchor: 'middle', bold: true });
     const txt = (asignacion.textos[e.id] || '').trim();
-    if (e.marca || txt || ES_DEFENSIVA(j.tipo)) {
+    if (e.marca || txt) {
       const bx = x + m.radio + 6 * m.e;
       f.push({ k: 'rect', x: bx, y: y - 11 * m.e, w: m.marcaAncho, h: 22 * m.e, rx: 3, fill: '#fffbe6', stroke: '#facc15', sw: 2 });
       f.push({ k: 'text', x: bx + 5 * m.e, y: y + m.fuente * 0.36, t: `${numero} marca a ${txt || '…'}`, size: m.fuente * 0.95, fill: '#111827', anchor: 'start', bold: true });
     }
+  }
+  for (const e of j.elementos.filter((x) => x.k === 'marcajes')) {
+    const g = geometriaMarcajes(e, ancho);
+    if (seleccion === e.id) f.push({ k: 'rect', x: g.caja.x, y: g.caja.y, w: g.caja.w, h: g.caja.h, rx: 8, fill: 'none', stroke: '#f97316', sw: 3 });
+    g.filas.forEach((r, i) => {
+      const nuestro = (asignacion.textos[claveMarcaje(e.id, 'n', i + 1)] || '').trim(); const rival = (asignacion.textos[claveMarcaje(e.id, 'r', i + 1)] || '').trim();
+      f.push({ k: 'circle', cx: r.cx, cy: r.cy, r: g.radio, fill: '#ffffff', stroke: '#1e293b', sw: 3 * m.e });
+      if (nuestro) f.push({ k: 'text', x: r.cx, y: r.cy + m.fuente * 0.38, t: nuestro, size: m.fuente * 1.25, fill: '#111827', anchor: 'middle', bold: true });
+      f.push({ k: 'rect', x: r.bx, y: r.cy - g.altoCaja / 2, w: g.anchoCaja, h: g.altoCaja, rx: 5, fill: '#ffffff', stroke: '#facc15', sw: 3 * m.e });
+      if (rival) f.push({ k: 'text', x: r.bx + g.anchoCaja / 2, y: r.cy + m.fuente * 0.38, t: rival, size: m.fuente * 1.25, fill: '#111827', anchor: 'middle', bold: true });
+    });
   }
   for (const e of j.elementos.filter((x) => x.k === 'nota')) {
     const c = cajaNota(e, ancho);
@@ -195,6 +221,7 @@ export function elementoEn(jOriginal, px, py, ancho, asignacion = null) {
     if (d <= tol && d < mejorD) { mejor = e.id; mejorD = d; }
   }
   if (mejor) return mejor;
+  for (const e of j.elementos.filter((x) => x.k === 'marcajes')) { const c = geometriaMarcajes(e, ancho).caja; if (px >= c.x && px <= c.x + c.w && py >= c.y && py <= c.y + c.h) return e.id; }
   for (const e of j.elementos.filter((x) => x.k === 'nota')) { const c = cajaNota(e, ancho); if (px >= c.x && px <= c.x + c.w && py >= c.y && py <= c.y + c.h) return e.id; }
   for (const e of j.elementos.filter((x) => x.k === 'flecha')) { const d = distSegmento(px, py, e.a.x * ancho, e.a.y * alto, e.b.x * ancho, e.b.y * alto); if (d <= 9 && d < mejorD) { mejor = e.id; mejorD = d; } }
   return mejor;
@@ -208,10 +235,12 @@ export function htmlJugada(j, asignacion, jugadores, { equipo = '', rival = '', 
   const nombres = Object.fromEntries(Object.entries(jugadores).map(([id, v]) => [id, v.nombre]));
   const dorsales = Object.fromEntries(Object.entries(jugadores).map(([id, v]) => [id, v.dorsal]));
   const res = formasJugada(j, { ancho: 760, asignacion, nombres, dorsales });
-  const lista = jugadoresDe(j).map((e) => {
+  const filasMarcaje = j.elementos.filter((e) => e.k === 'marcajes').flatMap((e) => Array.from({ length: FILAS_MARCAJES }, (_, i) => [(asignacion.textos[claveMarcaje(e.id, 'n', i + 1)] || '').trim(), (asignacion.textos[claveMarcaje(e.id, 'r', i + 1)] || '').trim()])).filter(([a, b]) => a || b)
+    .map(([a, b]) => `<li><b>${esc(a || '—')}</b> marca al <b>${esc(b || '—')}</b> rival</li>`).join('');
+  const lista = filasMarcaje + jugadoresDe(j).map((e) => {
     const id = asignacion.asig[e.id]; const jug = id != null ? jugadores[id] : null;
     const tx = (asignacion.textos[e.id] || '').trim();
-    const marca = e.marca || tx || ES_DEFENSIVA(j.tipo) ? ` · marca a <b>${esc(tx || '—')}</b>` : '';
+    const marca = e.marca || tx ? ` · marca a <b>${esc(tx || '—')}</b>` : '';
     return `<li>${jug ? `${esc(jug.dorsal != null && jug.dorsal !== '' ? `#${jug.dorsal} ` : '')}${esc(jug.nombre)}` : '<span style="color:#9ca3af">puesto ' + e.n + ' sin asignar</span>'}${marca}</li>`;
   }).join('');
   return `<div style="${saltoDePagina ? 'page-break-before: always;' : ''}font-family:-apple-system,Arial,sans-serif;padding:14px;max-width:790px;margin:auto;-webkit-print-color-adjust:exact;print-color-adjust:exact">

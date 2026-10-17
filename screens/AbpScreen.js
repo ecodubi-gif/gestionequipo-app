@@ -10,12 +10,12 @@ import {
 } from '../data/apiClient';
 import {
   TIPOS, ESTILOS_FLECHA, PROPORCION, limpiarJugada, jugadoresDe, anadirElemento, moverElemento, borrarElemento, cambiarNota, alternarMarca,
-  duplicar, numeroRival, asignacionVacia, asignar, ponerTexto, moverAsignado, limpiarAsignacion, formasJugada, elementoEn, htmlJugada,
+  duplicar, numeroRival, FILAS_MARCAJES, claveMarcaje, asignacionVacia, asignar, ponerTexto, moverAsignado, limpiarAsignacion, formasJugada, elementoEn, htmlJugada,
 } from '../data/abp';
 
 const HERRAMIENTAS = [
   ['sel', '👆 Mover'], ['jugador', '＋ Jugador'], ['rival', '＋ Rival'], ['balon', '＋ Balón'],
-  ['pase', '➜ Flecha balón'], ['carrera', '⇢ Flecha jugador'], ['nota', '＋ Nota'],
+  ['pase', '➜ Flecha balón'], ['carrera', '⇢ Flecha jugador'], ['nota', '＋ Nota'], ['marcajes', '＋ Marcajes'],
 ];
 const corto = (j) => (j ? (j.apodo || j.nombre || '—') : '—');
 const nuevaJugada = () => ({ id: null, titulo: 'Nueva jugada', tipo: 'otro', consigna: '', orden: 0, elementos: [] });
@@ -79,6 +79,7 @@ export default function AbpScreen({ route }) {
     }
     if (!puedeEditar) return;
     if (herramienta === 'jugador' || herramienta === 'rival' || herramienta === 'balon') { cambiarJugada((j) => anadirElemento(j, herramienta, { x: u, y: v })); return setHerramienta('sel'); }
+    if (herramienta === 'marcajes') { cambiarJugada((j) => anadirElemento(j, 'marcajes', { x: u, y: v })); return setHerramienta('sel'); }
     if (herramienta === 'nota') { cambiarJugada((j) => anadirElemento(j, 'nota', { x: u, y: v, t: 'Nota' })); return setHerramienta('sel'); }
     if (herramienta === 'pase' || herramienta === 'carrera') {
       if (!primerPunto) return setPrimerPunto({ x: u, y: v });
@@ -311,6 +312,18 @@ export default function AbpScreen({ route }) {
                 ) : <Text style={styles.ayuda}>{asigAbierta.textos[elSel.id] ? `Marca al nº ${asigAbierta.textos[elSel.id]}` : 'Solo el entrenador y el segundo entrenador pueden cambiarlo.'}</Text>}
               </View>
             )}
+            {abierta.elementos.filter((e) => e.k === 'marcajes').map((m) => (
+              <View key={m.id} style={styles.panel}>
+                <Text style={styles.panelTitulo}>Marcajes hombre a hombre: nuestro número → número del rival</Text>
+                {Array.from({ length: FILAS_MARCAJES }, (_, i) => i + 1).map((i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <TextInput style={[styles.input, { width: 64, textAlign: 'center', borderRadius: 32, borderWidth: 2 }]} placeholder="Nº" keyboardType="number-pad" inputMode="numeric" maxLength={2} editable={puedeEditar} value={asigAbierta.textos[claveMarcaje(m.id, 'n', i)] || ''} onChangeText={(t) => ponerAsig((a) => ponerTexto(a, claveMarcaje(m.id, 'n', i), t))} />
+                    <Text style={{ marginHorizontal: 8, fontWeight: '700' }}>marca al</Text>
+                    <TextInput style={[styles.input, { width: 80, textAlign: 'center', backgroundColor: '#fffbe6', borderColor: '#facc15', borderWidth: 2 }]} placeholder="Rival" keyboardType="number-pad" inputMode="numeric" maxLength={2} editable={puedeEditar} value={asigAbierta.textos[claveMarcaje(m.id, 'r', i)] || ''} onChangeText={(t) => ponerAsig((a) => ponerTexto(a, claveMarcaje(m.id, 'r', i), t))} />
+                  </View>
+                ))}
+              </View>
+            ))}
             {puedeEditar && <TouchableOpacity style={[styles.botonVerde, { alignSelf: 'stretch' }]} onPress={guardarAsignacion} disabled={guardando}><Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar jugadores de este partido'}</Text></TouchableOpacity>}
           </>
         )}
