@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { SISTEMAS, opcionActiva, sistemaValido, lineasDe, huecosDeSistema, etiquetasSistema, gruposSistema, rellenarHuecos, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco, cambiosEntre, frasesDeCambios, limpiarMomentos, htmlMomento } from '../data/alineacion';
+import { SISTEMAS, opcionActiva, sistemaValido, lineasDe, huecosDeSistema, etiquetasSistema, gruposSistema, rellenarHuecos, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco, cambiosEntre, frasesDeCambios, limpiarMomentos, htmlMomento, sincronizarConConvocatoria } from '../data/alineacion';
 let n = 0; const t = (_, f) => { f(); n++; };
 t('los 15 sistemas suman 11 con el portero', () => { assert.equal(SISTEMAS.length, 15); for (const s of SISTEMAS) { assert.ok(sistemaValido(s), s); assert.equal(huecosDeSistema(s).length, 11, s); assert.equal(etiquetasSistema(s).length, 11, s); assert.equal(gruposSistema(s).length, 11, s); } });
 t('sistemas inválidos', () => { for (const s of ['', '4-4', '4-4-3', '9', '4-4-2-1-1-1', '0-5-5']) assert.ok(!sistemaValido(s), s); });
@@ -83,5 +83,20 @@ t('4-2-3-1 plano: extremos abiertos a la altura del mediapunta, se guarda como 4
   assert.equal(m.sistema, '4-2-3-1'); assert.equal(opcionActiva(m), '4-2-3-1 plano');
   assert.ok(m.huecos[7].x <= 0.15 && m.huecos[9].x >= 0.85 && m.huecos[7].y === m.huecos[8].y);
   assert.equal(opcionActiva(cambiarSistema(m, '4-2-3-1')), '4-2-3-1'); assert.ok(sistemaValido(m.sistema));
+});
+t('mover con coordenadas no válidas no rompe el hueco', () => {
+  const m = momentoInicial('4-3-3', []); const r = moverHueco(m, 8, NaN, undefined); assert.equal(r, m);
+  assert.ok(r.huecos.every((h) => Number.isFinite(h.x) && Number.isFinite(h.y)));
+});
+t('sincronizar con la convocatoria: quita bajas y coloca titulares nuevos', () => {
+  const conv = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((id) => ({ id, posicion: 'Delantero Centro', titular: id <= 11 }));
+  const m = momentoInicial('4-3-3', conv.filter((j) => j.titular));
+  const nueva = conv.filter((j) => j.id !== 5).map((j) => (j.id === 12 ? { ...j, titular: true } : j));
+  const r = sincronizarConConvocatoria([m], nueva);
+  assert.ok(r.cambiado); const ids = r.momentos[0].huecos.map((h) => h.jugador_id);
+  assert.ok(!ids.includes(5)); assert.ok(ids.includes(12)); assert.equal(ids.filter((v) => v != null).length, 11);
+  assert.ok(!sincronizarConConvocatoria(r.momentos, nueva).cambiado);
+  const ss = sincronizarConConvocatoria([m], conv.map((j) => (j.id === 3 ? { ...j, titular: false } : j.id === 12 ? { ...j, titular: true } : j)));
+  const i2 = ss.momentos[0].huecos.map((h) => h.jugador_id); assert.ok(!i2.includes(3) && i2.includes(12));
 });
 console.log(`alineacion: ${n} pruebas OK`);

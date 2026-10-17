@@ -5,7 +5,7 @@ import { confirmar } from '../data/confirmar';
 import { generarDocumento } from '../data/compartir';
 import { obtenerPartidoApi, obtenerConvocatoriaApi, obtenerAlineacionApi, guardarAlineacionApi, obtenerNoDisponiblesApi, obtenerUsuario } from '../data/apiClient';
 import {
-  OPCIONES_SISTEMA, opcionActiva, MAX_MOMENTOS, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, asignar, intercambiar, moverHueco,
+  OPCIONES_SISTEMA, opcionActiva, MAX_MOMENTOS, momentoInicial, copiaComoNuevo, suplentesDe, cambiarSistema, sincronizarConConvocatoria, asignar, intercambiar, moverHueco,
   etiquetasSistema, frasesDeCambios, limpiarMomentos, htmlMomento,
 } from '../data/alineacion';
 
@@ -16,7 +16,7 @@ const corto = (j) => (j ? (j.apodo || j.nombre || '—') : '—');
 export default function AlineacionScreen({ route }) {
   const { partidoId } = route.params;
   const { width } = useWindowDimensions();
-  const ancho = Math.min(width - 32, 400);
+  const ancho = Math.max(1, Math.min(width - 32, 400));
   const alto = Math.round(ancho * 1.3);
   const [partido, setPartido] = useState(null);
   const [convocados, setConvocados] = useState([]);
@@ -29,10 +29,11 @@ export default function AlineacionScreen({ route }) {
   const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
   const [nuevo, setNuevo] = useState(null); // { etiqueta, minuto } mientras se crea un momento
 
   const cargar = useCallback(async () => {
-    setError('');
+    setError(''); setAviso('');
     try {
       const [p, conv, mom, u, nd] = await Promise.all([obtenerPartidoApi(partidoId), obtenerConvocatoriaApi(partidoId), obtenerAlineacionApi(partidoId), obtenerUsuario(), obtenerNoDisponiblesApi().catch(() => [])]);
       setNoDisponibles(nd);
@@ -41,6 +42,7 @@ export default function AlineacionScreen({ route }) {
       setPuedeEditar(['entrenador', 'segundo_entrenador'].includes(u?.role));
       let lista = limpiarMomentos({ momentos: mom });
       if (lista.length === 0 && js.some((j) => j.titular)) { lista = [momentoInicial('4-3-3', js.filter((j) => j.titular))]; setSucio(true); }
+      if (lista.length > 0) { const r = sincronizarConConvocatoria(lista, js); if (r.cambiado) { lista = r.momentos; setSucio(true); setAviso('La convocatoria ha cambiado: he puesto la alineación al día. Revísala y pulsa Guardar.'); } }
       setMomentos(lista); setActivoId(lista[0] ? lista[0].id : null);
     } catch (e) { setError(e.message || 'No se pudo cargar'); } finally { setCargando(false); }
   }, [partidoId]);
@@ -190,6 +192,7 @@ export default function AlineacionScreen({ route }) {
         </View>
 
         {!!error && <Text style={styles.error}>{error}</Text>}
+        {!!aviso && <Text style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: 8, borderRadius: 8, marginVertical: 6, fontWeight: '600' }}>{aviso}</Text>}
         {sucio && puedeEditar && <Text style={styles.aviso}>⚠️ Hay cambios sin guardar</Text>}
         <View style={styles.fila}>
           {puedeEditar && <TouchableOpacity style={[styles.botonVerde, !sucio && { opacity: 0.5 }]} onPress={guardar} disabled={guardando || !sucio}><Text style={styles.botonVerdeTexto}>{guardando ? 'Guardando…' : 'Guardar'}</Text></TouchableOpacity>}

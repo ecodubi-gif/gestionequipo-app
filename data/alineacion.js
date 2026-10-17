@@ -154,10 +154,41 @@ export function intercambiar(m, a, b) {
 
 // Mover a un jugador a otro punto del campo (su sitio queda donde lo ponen).
 export function moverHueco(m, indice, x, y) {
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !m.huecos[indice]) return m; // un toque sin coordenadas válidas no mueve nada
   const huecos = copiar(m.huecos);
   huecos[indice].x = redondear(Math.min(0.96, Math.max(0.04, x)));
   huecos[indice].y = redondear(Math.min(0.96, Math.max(0.04, y)));
   return { ...m, huecos };
+}
+
+// Pone la alineación al día con la convocatoria: quita a quien ya no está convocado y, en el 11 inicial,
+// coloca a los titulares nuevos en los huecos libres (y libera el sitio de quien ha pasado a suplente).
+// convocados: [{ id, posicion, titular }]. Devuelve { momentos, cambiado }.
+export function sincronizarConConvocatoria(momentos, convocados) {
+  const conv = new Map(convocados.map((j) => [j.id, j]));
+  let cambiado = false;
+  const nuevos = momentos.map((m, k) => {
+    let huecos = copiar(m.huecos);
+    huecos.forEach((h) => { if (h.jugador_id != null && !conv.has(h.jugador_id)) { h.jugador_id = null; cambiado = true; } });
+    if (k === 0) {
+      const colocados = new Set(huecos.map((h) => h.jugador_id).filter((v) => v != null));
+      const faltan = convocados.filter((j) => j.titular && !colocados.has(j.id));
+      let liberar = faltan.length - huecos.filter((h) => h.jugador_id == null).length;
+      if (liberar > 0) huecos.slice().reverse().forEach((h) => { if (liberar > 0 && h.jugador_id != null && conv.get(h.jugador_id) && !conv.get(h.jugador_id).titular) { h.jugador_id = null; liberar -= 1; cambiado = true; } });
+      if (faltan.length) {
+        const grupos = gruposSistema(m.sistema);
+        const pend = [];
+        for (const j of faltan) {
+          const g = grupoDePosicion(j.posicion);
+          const libre = g >= 0 ? huecos.findIndex((h, i) => h.jugador_id == null && grupos[i] === g) : -1;
+          if (libre >= 0) { huecos[libre].jugador_id = j.id; cambiado = true; } else pend.push(j);
+        }
+        for (const j of pend) { const libre = huecos.findIndex((h) => h.jugador_id == null); if (libre >= 0) { huecos[libre].jugador_id = j.id; cambiado = true; } }
+      }
+    }
+    return { ...m, huecos };
+  });
+  return { momentos: nuevos, cambiado };
 }
 
 export const quitarJugador = (m, indice) => { const huecos = copiar(m.huecos); huecos[indice].jugador_id = null; return { ...m, huecos }; };
