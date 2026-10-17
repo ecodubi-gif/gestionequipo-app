@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal,
 import { useFocusEffect } from '@react-navigation/native';
 import { confirmar } from '../data/confirmar';
 import { listarJugadoresApi, listarLesionesApi, crearLesionApi, actualizarLesionApi, eliminarLesionApi } from '../data/apiClient';
-import { fechaDeTexto, textoDeFecha } from '../data/fecha';
+import CampoFecha from '../components/CampoFecha';
 import { estaActiva, diasDeBaja, textoVuelta, diasParaVuelta, activasOrdenadas } from '../data/lesiones';
 
 function hoyISO() {
@@ -11,7 +11,7 @@ function hoyISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 const nombreDe = (j) => (j ? `${j.apodo || j.nombre} ${j.apodo ? '' : j.apellidos || ''}`.trim() : 'Jugador');
-const vacio = () => ({ id: null, jugador_id: null, tipo: '', zona: '', fecha_inicio: textoDeFecha(hoyISO()), fecha_vuelta_estimada: '', fecha_alta: '', nota: '' });
+const vacio = () => ({ id: null, jugador_id: null, tipo: '', zona: '', fecha_inicio: hoyISO(), fecha_vuelta_estimada: '', fecha_alta: '', nota: '' });
 
 export default function LesionesScreen() {
   const [lesiones, setLesiones] = useState([]);
@@ -44,13 +44,10 @@ export default function LesionesScreen() {
   const guardar = async () => {
     if (!form.jugador_id) return setErrorForm('Elige el jugador.');
     if (!form.tipo.trim()) return setErrorForm('Pon qué lesión es.');
-    const inicio = fechaDeTexto(form.fecha_inicio);
-    if (!inicio) return setErrorForm('La fecha de inicio va como DD/MM/AAAA (por ejemplo 18/10/2026).');
+    const inicio = form.fecha_inicio;
     const fechas = { fecha_inicio: inicio };
     for (const c of ['fecha_vuelta_estimada', 'fecha_alta']) {
-      const v = (form[c] || '').trim();
-      fechas[c] = v ? fechaDeTexto(v) : null;
-      if (v && !fechas[c]) return setErrorForm('Las fechas van como DD/MM/AAAA (o vacías).');
+      fechas[c] = form[c] || null;
       if (fechas[c] && fechas[c] < inicio) return setErrorForm('Una fecha no puede ser anterior al inicio.');
     }
     const cuerpo = {
@@ -76,7 +73,7 @@ export default function LesionesScreen() {
     try { await eliminarLesionApi(l.id); setForm(null); await cargar(); } catch (e) { setError(e.message); }
   }, 'Borrar');
 
-  const abrir = (l) => setForm({ id: l.id, jugador_id: l.jugador_id, tipo: l.tipo, zona: l.zona || '', fecha_inicio: textoDeFecha(l.fecha_inicio), fecha_vuelta_estimada: textoDeFecha(l.fecha_vuelta_estimada), fecha_alta: textoDeFecha(l.fecha_alta), nota: l.nota || '' });
+  const abrir = (l) => setForm({ id: l.id, jugador_id: l.jugador_id, tipo: l.tipo, zona: l.zona || '', fecha_inicio: l.fecha_inicio, fecha_vuelta_estimada: l.fecha_vuelta_estimada || '', fecha_alta: l.fecha_alta || '', nota: l.nota || '' });
 
   const Fila = ({ l }) => {
     const d = diasParaVuelta(l, hoy);
@@ -122,12 +119,20 @@ export default function LesionesScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            {[['tipo', 'Lesión (ej. esguince, sobrecarga)'], ['zona', 'Zona (ej. tobillo derecho)'], ['fecha_inicio', 'Desde (DD/MM/AAAA)'], ['fecha_vuelta_estimada', 'Vuelta estimada (DD/MM/AAAA)'], ['fecha_alta', 'Alta (DD/MM/AAAA, vacío si sigue lesionado)'], ['nota', 'Nota']].map(([c, t]) => (
+            {[['tipo', 'Lesión (ej. esguince, sobrecarga)'], ['zona', 'Zona (ej. tobillo derecho)']].map(([c, t]) => (
               <View key={c}>
                 <Text style={styles.etiqueta}>{t}</Text>
-                <TextInput style={styles.input} value={form[c]} onChangeText={(v) => setForm({ ...form, [c]: v })} autoCapitalize="none" multiline={c === 'nota'} />
+                <TextInput style={styles.input} value={form[c]} onChangeText={(v) => setForm({ ...form, [c]: v })} autoCapitalize="none" />
               </View>
             ))}
+            <Text style={styles.etiqueta}>Desde</Text>
+            <CampoFecha valor={form.fecha_inicio} onCambiar={(v) => v && setForm({ ...form, fecha_inicio: v })} />
+            <Text style={styles.etiqueta}>Vuelta estimada</Text>
+            <CampoFecha valor={form.fecha_vuelta_estimada} opcional textoVacio="Sin fecha de vuelta" onCambiar={(v) => setForm({ ...form, fecha_vuelta_estimada: v })} />
+            <Text style={styles.etiqueta}>Alta (déjala sin fecha si sigue lesionado)</Text>
+            <CampoFecha valor={form.fecha_alta} opcional textoVacio="Sigue lesionado" textoPoner="＋ Dar de alta" onCambiar={(v) => setForm({ ...form, fecha_alta: v })} />
+            <Text style={styles.etiqueta}>Nota</Text>
+            <TextInput style={styles.input} value={form.nota} onChangeText={(v) => setForm({ ...form, nota: v })} multiline />
             {!!errorForm && <Text style={styles.error}>{errorForm}</Text>}
             <TouchableOpacity style={styles.guardar} onPress={guardar} disabled={guardando}><Text style={styles.guardarTexto}>{guardando ? 'Guardando…' : 'Guardar'}</Text></TouchableOpacity>
             {!!form.id && <TouchableOpacity style={styles.borrar} onPress={() => borrar(form)}><Text style={styles.borrarTexto}>Borrar lesión</Text></TouchableOpacity>}
