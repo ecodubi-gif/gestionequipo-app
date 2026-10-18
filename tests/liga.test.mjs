@@ -42,4 +42,16 @@ const ant = r.filas.map((f) => ({ ...f, pos: f.equipo.includes('MORON') ? 9 : f.
 t('cambio de puesto: sube 2', fichaRival({ filas: r.filas, anterior: ant, calendario: cal, hoy: '2026-10-12' }).cambioPuesto === 2);
 const fi = fichaRival({ filas: r.filas, anterior: null, calendario: cal, hoy: '2026-09-13' });
 t('en la jornada 1 (en casa) la sede del rival es fuera', fi.proximo.esLocal && fi.sede === 'fuera');
+// Formato corto actual de la web: Pts J G E P F C + últimos 5 (+ sanción opcional)
+const corta = `1 C.D. EL PALMAR VEREDA REAL 11 6 3 2 1 14 8 E G G P G 0
+2 U.D. MORON C.F. 10 6 3 1 2 14 9 E G G P G 0
+13 DOS HERMANAS CLUB DE FÚTBOL 1971 7 6 2 1 3 9 10 G P E P P
+18 C.D. DE FÚTBOL HERRERA 4 6 1 1 4 7 18 P G P E P 0`;
+const rc = parsearClasificacion(corta);
+t('corto: 4 filas', rc.filas.length === 4);
+t('corto: solo avisa de puestos que saltan', rc.avisos.length === 1 && rc.avisos[0].includes('puestos'));
+t('corto: nombre con 1971 y sin sanción final', rc.filas[2].equipo === 'DOS HERMANAS CLUB DE FÚTBOL 1971' && rc.filas[2].pts === 7 && rc.filas[2].sancion === 0 && rc.filas[2].ultimos.join('') === 'PPEPG');
+t('corto: herrera', rc.filas[3].pts === 4 && JSON.stringify(totales(rc.filas[3])) === '{"j":6,"g":1,"e":1,"p":4}' && rc.filas[3].f === 7 && rc.filas[3].c === 18);
+t('corto: casa y fuera desconocidos', rc.filas[0].casa === null && rc.filas[0].fuera === null && rc.filas[0].equipo === 'C.D. EL PALMAR VEREDA REAL');
+t('corto: puntos que no cuadran avisan', parsearClasificacion('1 X 99 6 3 1 2 14 9 G G G G G 0').avisos.length === 1);
 console.log(`liga: ${ok} ok, ${mal} mal`);

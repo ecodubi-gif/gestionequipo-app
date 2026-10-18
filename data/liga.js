@@ -10,7 +10,9 @@ export const normEquipo = (s) => sinTildes(s).toUpperCase().replace(/\s+/g, ' ')
 export const mismoEquipo = (a, b) => normEquipo(a) === normEquipo(b);
 
 // Lee la tabla tal como sale en la web (copiada y pegada). Cada equipo es una línea:
-//   puesto, nombre, Pts, [casa: J G E P], [fuera: J G E P], F, C, últimos 5, puntos de sanción
+//   Formato largo:  puesto, nombre, Pts, [casa: J G E P], [fuera: J G E P], F, C, últimos 5, puntos de sanción
+//   Formato corto (el de ahora en la web): puesto, nombre, Pts, J, G, E, P, F, C, últimos 5 y, a veces, puntos de sanción
+//   (en el corto no se sabe qué fue en casa y qué fuera: casa y fuera quedan en null y se usa el total).
 // Los "últimos" vienen con el más reciente PRIMERO; aquí se guardan en orden cronológico (el más reciente, el último).
 export function parsearClasificacion(texto) {
   const filas = [];
@@ -19,22 +21,24 @@ export function parsearClasificacion(texto) {
   for (const bruta of lineas) {
     const l = bruta.replace(/\s+/g, ' ').trim();
     if (!l || !/^\d+ /.test(l)) continue;
-    const m = l.match(/^(\d+) (.+?) (\d+(?: \d+){10})((?: [GEP]){0,5}) (\d+)$/);
+    const m = l.match(/^(\d+) (.+?) (\d+(?: \d+){10}|\d+(?: \d+){6})((?: [GEP]){0,5})(?: (\d+))?$/);
     if (!m) {
       avisos.push(`No he entendido esta línea: "${l.slice(0, 60)}"`);
       continue;
     }
     const n = m[3].split(' ').map(Number);
-    const casa = { j: n[1], g: n[2], e: n[3], p: n[4] };
-    const fuera = { j: n[5], g: n[6], e: n[7], p: n[8] };
+    const largo = n.length === 11;
+    const casa = largo ? { j: n[1], g: n[2], e: n[3], p: n[4] } : null;
+    const fuera = largo ? { j: n[5], g: n[6], e: n[7], p: n[8] } : null;
+    const tot = largo ? { j: casa.j + fuera.j, g: casa.g + fuera.g, e: casa.e + fuera.e, p: casa.p + fuera.p } : { j: n[1], g: n[2], e: n[3], p: n[4] };
     const ultimos = m[4].trim() ? m[4].trim().split(' ').reverse().map((x) => MARCAS[x]) : [];
-    const sancion = Number(m[5]);
+    const sancion = m[5] ? Number(m[5]) : 0;
     const fila = {
-      pos: Number(m[1]), equipo: m[2].trim(), pts: n[0], casa, fuera, f: n[9], c: n[10], ultimos, sancion,
+      pos: Number(m[1]), equipo: m[2].trim(), pts: n[0], casa, fuera, tot, f: largo ? n[9] : n[5], c: largo ? n[10] : n[6], ultimos, sancion,
     };
-    const g = casa.g + fuera.g; const e = casa.e + fuera.e;
-    if (casa.j !== casa.g + casa.e + casa.p || fuera.j !== fuera.g + fuera.e + fuera.p) avisos.push(`${fila.equipo}: los partidos en casa o fuera no cuadran con ganados, empatados y perdidos.`);
-    else if (fila.pts + sancion !== 3 * g + e) avisos.push(`${fila.equipo}: los puntos (${fila.pts}) no cuadran con sus resultados.`);
+    if (largo && (casa.j !== casa.g + casa.e + casa.p || fuera.j !== fuera.g + fuera.e + fuera.p)) avisos.push(`${fila.equipo}: los partidos en casa o fuera no cuadran con ganados, empatados y perdidos.`);
+    else if (tot.j !== tot.g + tot.e + tot.p) avisos.push(`${fila.equipo}: los partidos jugados no cuadran con ganados, empatados y perdidos.`);
+    else if (fila.pts + sancion !== 3 * tot.g + tot.e) avisos.push(`${fila.equipo}: los puntos (${fila.pts}) no cuadran con sus resultados.`);
     filas.push(fila);
   }
   filas.sort((a, b) => a.pos - b.pos);
@@ -47,7 +51,7 @@ export function parsearClasificacion(texto) {
   return { filas, avisos };
 }
 
-export const totales = (f) => ({
+export const totales = (f) => (f.tot ? { ...f.tot } : {
   j: f.casa.j + f.fuera.j, g: f.casa.g + f.fuera.g, e: f.casa.e + f.fuera.e, p: f.casa.p + f.fuera.p,
 });
 
@@ -82,7 +86,7 @@ export function fichaRival({ filas, anterior, calendario, equipo = MI_EQUIPO, ho
   return {
     proximo, rival, mia, sede,
     cambioPuesto: rival && antes ? antes.pos - rival.pos : null, // positivo = ha subido
-    rendimientoSede: rival ? rival[sede] : null,
+    rendimientoSede: rival ? (rival[sede] || null) : null,
     golesPorPartido: rival && t.j ? { f: Math.round((rival.f / t.j) * 10) / 10, c: Math.round((rival.c / t.j) * 10) / 10 } : null,
     diferenciaPuntos: rival && mia ? rival.pts - mia.pts : null,
   };

@@ -229,18 +229,28 @@ export default function LigaScreen({ navigation }) {
                       <Racha marcas={ficha.rival.ultimos} />
                     </View>
 
+                    {ficha.rival.casa && ficha.rival.fuera ? (
                     <View style={styles.fila}>
-                      <View style={[styles.sede, ficha.sede === 'casa' && styles.sedeActiva]}>
-                        <Text style={styles.etiqueta}>En casa{ficha.sede === 'casa' ? ' · lo que importa' : ''}</Text>
-                        <Text style={styles.sedeTexto}>{ficha.rival.casa.g}G {ficha.rival.casa.e}E {ficha.rival.casa.p}P</Text>
-                        <Text style={styles.mini}>en {ficha.rival.casa.j} partidos</Text>
+                        <View style={[styles.sede, ficha.sede === 'casa' && styles.sedeActiva]}>
+                          <Text style={styles.etiqueta}>En casa{ficha.sede === 'casa' ? ' · lo que importa' : ''}</Text>
+                          <Text style={styles.sedeTexto}>{ficha.rival.casa.g}G {ficha.rival.casa.e}E {ficha.rival.casa.p}P</Text>
+                          <Text style={styles.mini}>en {ficha.rival.casa.j} partidos</Text>
+                        </View>
+                        <View style={[styles.sede, ficha.sede === 'fuera' && styles.sedeActiva]}>
+                          <Text style={styles.etiqueta}>Fuera{ficha.sede === 'fuera' ? ' · lo que importa' : ''}</Text>
+                          <Text style={styles.sedeTexto}>{ficha.rival.fuera.g}G {ficha.rival.fuera.e}E {ficha.rival.fuera.p}P</Text>
+                          <Text style={styles.mini}>en {ficha.rival.fuera.j} partidos</Text>
+                        </View>
                       </View>
-                      <View style={[styles.sede, ficha.sede === 'fuera' && styles.sedeActiva]}>
-                        <Text style={styles.etiqueta}>Fuera{ficha.sede === 'fuera' ? ' · lo que importa' : ''}</Text>
-                        <Text style={styles.sedeTexto}>{ficha.rival.fuera.g}G {ficha.rival.fuera.e}E {ficha.rival.fuera.p}P</Text>
-                        <Text style={styles.mini}>en {ficha.rival.fuera.j} partidos</Text>
+                    ) : (
+                      <View style={styles.fila}>
+                        <View style={styles.sede}>
+                          <Text style={styles.etiqueta}>En total</Text>
+                          <Text style={styles.sedeTexto}>{totales(ficha.rival).g}G {totales(ficha.rival).e}E {totales(ficha.rival).p}P</Text>
+                          <Text style={styles.mini}>en {totales(ficha.rival).j} partidos</Text>
+                        </View>
                       </View>
-                    </View>
+                    )}
 
                     <Text style={styles.texto}>
                       Goles: {ficha.rival.f} a favor y {ficha.rival.c} en contra
