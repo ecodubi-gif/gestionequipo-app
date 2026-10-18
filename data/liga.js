@@ -68,14 +68,18 @@ export function partidosDe(calendario, equipo) {
     .sort((a, b) => a.jornada - b.jornada);
 }
 
-// Primer partido de la jornada de hoy en adelante. fecha: 'AAAA-MM-DD'.
-export function proximoPartido(calendario, equipo, hoy) {
-  return partidosDe(calendario, equipo).find((p) => p.fecha >= hoy) || null;
+// Primer partido por jugar. Se da por jugado de dos formas: porque ya pasó su fecha, o porque en la app
+// se cerró ese partido (cerradas: fechas 'AAAA-MM-DD' de partidos finalizados en la app).
+export function proximoPartido(calendario, equipo, hoy, cerradas = []) {
+  return partidosDe(calendario, equipo).find((p) => p.fecha >= hoy && !cerradas.includes(p.fecha)) || null;
 }
 
+// Fechas de los partidos que la app ya tiene finalizados.
+export const fechasCerradas = (partidos) => (partidos || []).filter((p) => p.estado === 'finalizado').map((p) => String(p.fecha).slice(0, 10));
+
 // Todo lo que se enseña del próximo rival.
-export function fichaRival({ filas, anterior, calendario, equipo = MI_EQUIPO, hoy }) {
-  const proximo = proximoPartido(calendario, equipo, hoy);
+export function fichaRival({ filas, anterior, calendario, equipo = MI_EQUIPO, hoy, cerradas = [] }) {
+  const proximo = proximoPartido(calendario, equipo, hoy, cerradas);
   if (!proximo) return null;
   const rival = filaDe(filas, proximo.rival);
   const mia = filaDe(filas, equipo);

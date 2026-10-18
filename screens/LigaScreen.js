@@ -2,10 +2,10 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
 import { elegirPdf } from '../data/leerPdf';
 import { useFocusEffect } from '@react-navigation/native';
-import { obtenerUsuario, obtenerLigaApi, guardarClasificacionApi, guardarNotaRivalApi, obtenerScoutingApi } from '../data/apiClient';
+import { obtenerUsuario, obtenerLigaApi, guardarClasificacionApi, guardarNotaRivalApi, obtenerScoutingApi, listarPartidosApi } from '../data/apiClient';
 import Formacion from '../components/Formacion';
 import { resumenInforme, estaVacio, jugadoresPorTipo, TIPOS_JUGADOR, progreso } from '../data/scouting';
-import { MI_EQUIPO, parsearClasificacion, fichaRival, partidosDe, mismoEquipo, totales } from '../data/liga';
+import { MI_EQUIPO, fechasCerradas, parsearClasificacion, fichaRival, partidosDe, mismoEquipo, totales } from '../data/liga';
 
 const ROLES_EDITAR = ['entrenador', 'segundo_entrenador'];
 const ROLES_VER_SCOUTING = ['entrenador', 'segundo_entrenador', 'preparador_fisico'];
@@ -51,11 +51,13 @@ export default function LigaScreen({ navigation }) {
   const [nota, setNota] = useState(null); // null = sin cambios
   const [guardandoNota, setGuardandoNota] = useState(false);
   const [scouting, setScouting] = useState({});
+  const [cerradas, setCerradas] = useState([]); // fechas de partidos ya finalizados en la app
 
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [u, l] = await Promise.all([obtenerUsuario(), obtenerLigaApi()]);
+      const [u, l, ps] = await Promise.all([obtenerUsuario(), obtenerLigaApi(), listarPartidosApi().catch(() => [])]);
+      setCerradas(fechasCerradas(ps));
       setUsuario(u);
       setLiga(l);
       // El informe de scouting solo lo ve el cuerpo técnico; si falla, la liga se ve igual.
@@ -74,8 +76,8 @@ export default function LigaScreen({ navigation }) {
   const hoy = hoyISO();
   const filas = liga?.clasificacion?.filas || [];
   const ficha = useMemo(
-    () => (liga ? fichaRival({ filas, anterior: liga.anterior?.filas || null, calendario: liga.calendario, hoy }) : null),
-    [liga, filas, hoy]
+    () => (liga ? fichaRival({ filas, anterior: liga.anterior?.filas || null, calendario: liga.calendario, hoy, cerradas }) : null),
+    [liga, filas, hoy, cerradas]
   );
   const [leyendoPdf, setLeyendoPdf] = useState(false);
   const [errorPdf, setErrorPdf] = useState('');
@@ -398,7 +400,7 @@ export default function LigaScreen({ navigation }) {
         {pestana === 'calendario' && (
           <View style={{ gap: 8 }}>
             {partidosDe(liga.calendario, MI_EQUIPO).map((p) => {
-              const pasado = p.fecha < hoy;
+              const pasado = p.fecha < hoy || cerradas.includes(p.fecha);
               const esSiguiente = proximo && p.jornada === proximo.jornada;
               return (
                 <View key={p.jornada} style={[styles.partido, esSiguiente && styles.partidoSiguiente, pasado && { opacity: 0.55 }]}>

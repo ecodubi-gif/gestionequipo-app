@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { parsearClasificacion, fichaRival, partidosDe, proximoPartido, normEquipo, totales } from './liga.mjs';
+import { fechasCerradas, parsearClasificacion, fichaRival, partidosDe, proximoPartido, normEquipo, totales } from './liga.mjs';
 let ok = 0, mal = 0;
 const t = (n, c) => { if (c) ok++; else { mal++; console.log('MAL:', n); } };
 const tabla = ` Equipos	Partidos Casa	Partidos Fuera	Goles	Últimos	Sanción
@@ -54,4 +54,10 @@ t('corto: nombre con 1971 y sin sanción final', rc.filas[2].equipo === 'DOS HER
 t('corto: herrera', rc.filas[3].pts === 4 && JSON.stringify(totales(rc.filas[3])) === '{"j":6,"g":1,"e":1,"p":4}' && rc.filas[3].f === 7 && rc.filas[3].c === 18);
 t('corto: casa y fuera desconocidos', rc.filas[0].casa === null && rc.filas[0].fuera === null && rc.filas[0].equipo === 'C.D. EL PALMAR VEREDA REAL');
 t('corto: puntos que no cuadran avisan', parsearClasificacion('1 X 99 6 3 1 2 14 9 G G G G G 0').avisos.length === 1);
+// Próximo partido: por fecha, o porque la app ya lo cerró
+const calP = [{ jornada: 6, fecha: '2026-10-18', local: 'U.D. MORON C.F.', visitante: 'C.D. DE FÚTBOL HERRERA' }, { jornada: 7, fecha: '2026-10-25', local: 'C.D. DE FÚTBOL HERRERA', visitante: 'C.D. EL PALMAR VEREDA REAL' }];
+t('el día del partido, sin cerrar, sigue siendo el próximo', proximoPartido(calP, 'C.D. DE FÚTBOL HERRERA', '2026-10-18').jornada === 6);
+t('cerrado en la app el mismo día: pasa al siguiente', proximoPartido(calP, 'C.D. DE FÚTBOL HERRERA', '2026-10-18', fechasCerradas([{ fecha: '2026-10-18 17:00:00', estado: 'finalizado' }])).jornada === 7);
+t('sin cerrar pero pasado el día: pasa por fecha', proximoPartido(calP, 'C.D. DE FÚTBOL HERRERA', '2026-10-19').jornada === 7);
+t('partidos no finalizados no cuentan como cerrados', fechasCerradas([{ fecha: '2026-10-18', estado: 'en_curso' }]).length === 0);
 console.log(`liga: ${ok} ok, ${mal} mal`);
