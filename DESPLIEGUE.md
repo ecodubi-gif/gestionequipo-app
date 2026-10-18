@@ -29,6 +29,10 @@ Marca con ✔ lo que hayas ejecutado y comprobado (todas las líneas "OK").
 9. [ ] `aplicar-resumen-jugador.sh` — resumen del último partido en la página del jugador (necesita el 3)
 10. [ ] `aplicar-cantera.sh` — jugadores de cantera (infantil, cadete, juvenil, filial)
 
+11. [ ] `aplicar-correcciones-partido.sh` — corregir eventos ya apuntados y poner minutos jugados a mano
+
+Datos del partido Herrera–Morón (18/10/2026): `bash /root/corregir-partido-moron.sh` (solo después del 11; compara con el acta y corrige marcador 3-0 y minutos).
+
 Todo de una vez: `bash /root/aplicar-todo.sh` (los ejecuta en este orden y se para si uno falla; todos se pueden repetir).
 
 Pendientes de antes (confirmar si se ejecutaron): `aplicar-rueda-fisica.sh`, `aplicar-rueda-opcional.sh`, `aplicar-scouting.sh`, `aplicar-campos-herrera.sh`, `borrar-partido-alhaurin.sh`, `limpiar-equipo-anterior.sh`, `resetear-clave.sh`, `aplicar-correo.sh`.

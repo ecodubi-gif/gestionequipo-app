@@ -19,6 +19,9 @@ import {
   listarEventosApi,
   crearEventoApi,
   eliminarEventoApi,
+  actualizarEventoApi,
+  listarMinutosManualesApi,
+  guardarMinutoManualApi,
   actualizarPartidoApi,
   obtenerUsuario,
 } from '../data/apiClient';
@@ -64,6 +67,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
   const [error, setError] = useState('');
   const [usuario, setUsuario] = useState(null);
   const puedeGestionar = usuario && ROLES_GESTION.includes(usuario.role);
+  const puedeCorregirDatos = usuario && ['delegado', 'entrenador', 'segundo_entrenador'].includes(usuario.role);
 
   // Cronómetro: solo en este móvil, no se guarda en el servidor.
   const [estadoLocal, setEstadoLocal] = useState('pendiente'); // pendiente | en_curso | descanso | finalizado
@@ -88,18 +92,22 @@ export default function RegistroEventosScreen({ route, navigation }) {
   const [relojCargado, setRelojCargado] = useState(false);
   const [modalFinalVisible, setModalFinalVisible] = useState(false);
   const [minutoFinalElegido, setMinutoFinalElegido] = useState(90);
+  const [editando, setEditando] = useState(null); // evento que se está corrigiendo (null = evento nuevo)
+  const [manuales, setManuales] = useState({}); // minutos jugados puestos a mano: { [jugadorId]: minutos }
 
   const cargar = useCallback(
     async (esRecarga = false) => {
       setError('');
       if (esRecarga) setActualizando(true);
       try {
-        const [u, p, c, e] = await Promise.all([
+        const [u, p, c, e, man] = await Promise.all([
           obtenerUsuario(),
           obtenerPartidoApi(partidoId),
           obtenerConvocatoriaApi(partidoId),
           listarEventosApi(partidoId),
+          listarMinutosManualesApi(partidoId),
         ]);
+        setManuales(man);
         setUsuario(u);
         setPartido(p);
         setConvocatoria(c);
@@ -312,7 +320,18 @@ export default function RegistroEventosScreen({ route, navigation }) {
     }
   };
 
+  // Minutos jugados puestos a mano (null = volver al cálculo automático por los cambios).
+  const guardarMinuto = async (jugadorId, minutos) => {
+    try {
+      await guardarMinutoManualApi(partidoId, jugadorId, minutos);
+      setManuales((prev) => { const n = { ...prev }; if (minutos == null) delete n[jugadorId]; else n[jugadorId] = minutos; return n; });
+    } catch (err) {
+      Alert.alert('No se pudo guardar el minuto', err.message);
+    }
+  };
+
   const abrirModal = (tipo) => {
+    setEditando(null);
     // Los cambios solo se pueden registrar en nuestro equipo: del rival
     // no conocemos el banquillo.
     setEquipoSeleccionado(tipo === 'cambio' ? nuestroLado : 'local');
@@ -325,9 +344,25 @@ export default function RegistroEventosScreen({ route, navigation }) {
     setModalTipo(tipo);
   };
 
+  // Corregir un evento ya apuntado: mismo formulario, con sus datos. Se puede cambiar equipo, minuto, resultado y jugadores.
+  const abrirEditar = (evento) => {
+    const porId = (id) => convocatoria.map((c) => c.jugador).find((j) => j.id === id) || null;
+    setEditando(evento);
+    setEquipoSeleccionado(evento.equipo);
+    setResultadoSeleccionado(evento.resultado || null);
+    setJugadorSeleccionado(evento.tipo === 'cambio' ? porId(evento.jugador_entra_id) : porId(evento.jugador_id));
+    setJugadorSaleSeleccionado(porId(evento.jugador_sale_id));
+    setDorsalRivalSeleccionado(evento.dorsal_rival ? String(evento.dorsal_rival) : '');
+    setMostrarOtroDorsal(false);
+    setMinutoEvento(evento.minuto);
+    setModalTipo(evento.tipo);
+  };
+
   const config = modalTipo ? CONFIG_TIPO[modalTipo] : null;
-  const enCampoEquipo = modalTipo ? jugadoresEnCampo(convocatoria, eventos) : [];
-  const banquilloEquipo = modalTipo === 'cambio' ? jugadoresEnBanquillo(convocatoria, eventos) : [];
+  // Al corregir un evento antiguo no vale «quién está en el campo ahora»: se ofrece toda la convocatoria.
+  const todosConvocados = convocatoria.map((c) => c.jugador);
+  const enCampoEquipo = modalTipo ? (editando ? todosConvocados : jugadoresEnCampo(convocatoria, eventos)) : [];
+  const banquilloEquipo = modalTipo === 'cambio' ? (editando ? todosConvocados : jugadoresEnBanquillo(convocatoria, eventos)) : [];
 
   const esRival = equipoSeleccionado === rivalLado;
 
@@ -347,9 +382,36 @@ export default function RegistroEventosScreen({ route, navigation }) {
     return true;
   };
 
+  // Si el partido ya está cerrado, el marcador guardado se recalcula con los eventos corregidos.
+  const recalcularMarcadorGuardado = async (lista) => {
+    if (!partido || partido.estado !== 'finalizado') return;
+    const gl = lista.filter((e) => e.tipo === 'tiro' && e.resultado === 'gol' && e.equipo === 'local').length;
+    const gv = lista.filter((e) => e.tipo === 'tiro' && e.resultado === 'gol' && e.equipo === 'visitante').length;
+    setPartido((prev) => ({ ...prev, goles_local: gl, goles_visitante: gv }));
+    await actualizarPartidoApi(partidoId, { goles_local: gl, goles_visitante: gv });
+  };
+
   const confirmarEvento = async () => {
     setEnviandoEvento(true);
     try {
+      if (editando) {
+        await actualizarEventoApi(editando.id, {
+          equipo: equipoSeleccionado,
+          minuto: minutoEvento,
+          resultado: resultadoSeleccionado || null,
+          jugador_id: modalTipo === 'cambio' || esRival ? null : jugadorSeleccionado?.id || null,
+          jugador_sale_id: modalTipo === 'cambio' ? jugadorSaleSeleccionado?.id || null : null,
+          jugador_entra_id: modalTipo === 'cambio' ? jugadorSeleccionado?.id || null : null,
+          dorsal_rival: modalTipo !== 'cambio' && esRival && dorsalRivalSeleccionado ? Number(dorsalRivalSeleccionado) : null,
+        });
+        const lista = await listarEventosApi(partidoId);
+        setEventos(lista);
+        await recalcularMarcadorGuardado(lista).catch((err) => Alert.alert('Evento corregido, pero el marcador guardado no se ha actualizado', err.message));
+        Keyboard.dismiss();
+        setModalTipo(null);
+        setEditando(null);
+        return;
+      }
       const nuevo = await crearEventoApi(partidoId, {
         tipo: modalTipo,
         equipo: equipoSeleccionado,
@@ -375,7 +437,11 @@ export default function RegistroEventosScreen({ route, navigation }) {
     confirmar('Eliminar evento', '¿Seguro que quieres borrarlo?', async () => {
       try {
         await eliminarEventoApi(eventoId);
-        setEventos((prev) => prev.filter((e) => e.id !== eventoId));
+        const resto = eventos.filter((e) => e.id !== eventoId);
+        setEventos(resto);
+        setModalTipo(null);
+        setEditando(null);
+        await recalcularMarcadorGuardado(resto).catch(() => {});
       } catch (err) {
         Alert.alert('No se pudo eliminar', err.message);
       }
@@ -492,7 +558,8 @@ export default function RegistroEventosScreen({ route, navigation }) {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.filaEvento}
-              onLongPress={puedeGestionar ? () => borrarEvento(item.id) : undefined}
+              onPress={puedeCorregirDatos ? () => abrirEditar(item) : undefined}
+              onLongPress={puedeCorregirDatos ? () => borrarEvento(item.id) : undefined}
             >
               <Text style={styles.minutoEvento}>{item.minuto}'</Text>
               <Text style={styles.iconoEvento}>{iconoDe(item)}</Text>
@@ -506,6 +573,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
                   <Text style={styles.detalleEvento}>Rival #{item.dorsal_rival}</Text>
                 ) : null}
               </View>
+              {puedeCorregirDatos && <Text style={styles.editarEvento}>✏️</Text>}
             </TouchableOpacity>
           )}
         />
@@ -528,13 +596,16 @@ export default function RegistroEventosScreen({ route, navigation }) {
           descanso={estadoLocal === 'descanso'}
           puedeCorregir={puedeGestionar}
           onCorregirMinutoFinal={corregirMinutoFinal}
+          manuales={manuales}
+          puedeEditarMinutos={Boolean(puedeCorregirDatos)}
+          onGuardarMinuto={guardarMinuto}
         />
       )}
 
       <Modal visible={modalTipo !== null} transparent animationType="slide">
         <View style={[styles.modalFondo, mostrarOtroDorsal && { justifyContent: 'flex-start', paddingTop: 40 }]}>
           <ScrollView style={styles.modalContenido} contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalTitulo}>{config?.etiqueta}</Text>
+            <Text style={styles.modalTitulo}>{editando ? `Corregir: ${config?.etiqueta}` : config?.etiqueta}</Text>
 
             <Text style={styles.etiquetaSeccion}>Minuto</Text>
             <StepperMinuto valor={minutoEvento} onCambiar={setMinutoEvento} />
@@ -639,8 +710,13 @@ export default function RegistroEventosScreen({ route, navigation }) {
               </>
             )}
 
+            {!!editando && (
+              <TouchableOpacity style={styles.botonEliminarEvento} onPress={() => borrarEvento(editando.id)}>
+                <Text style={styles.botonEliminarEventoTexto}>🗑 Eliminar este evento</Text>
+              </TouchableOpacity>
+            )}
             <View style={styles.modalBotones}>
-              <TouchableOpacity style={styles.botonCancelar} onPress={() => { Keyboard.dismiss(); setModalTipo(null); }}>
+              <TouchableOpacity style={styles.botonCancelar} onPress={() => { Keyboard.dismiss(); setModalTipo(null); setEditando(null); }}>
                 <Text style={styles.botonCancelarTexto}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.botonConfirmar, !puedeConfirmar() && styles.botonDeshabilitado]} onPress={confirmarEvento} disabled={!puedeConfirmar() || enviandoEvento}>
@@ -698,11 +774,12 @@ function SelectorJugadores({ jugadores, seleccionado, onSeleccionar, vacioTexto 
   if (jugadores.length === 0) return <Text style={styles.listaVaciaModal}>{vacioTexto}</Text>;
   return (
     <View style={styles.listaJugadoresModal}>
-      {jugadores.map((j) => (
-        <TouchableOpacity key={j.id} style={[styles.chipJugadorModal, seleccionado?.id === j.id && styles.chipJugadorModalActivo]} onPress={() => onSeleccionar(j)}>
-          <Text style={[styles.chipTexto, seleccionado?.id === j.id && styles.chipTextoActivo]}>{nombreCompleto(j)}</Text>
+      {[...jugadores].sort((a, b) => (a.dorsal ?? 999) - (b.dorsal ?? 999)).map((j) => (
+        <TouchableOpacity key={j.id} style={[styles.chipDorsalModal, seleccionado?.id === j.id && styles.chipJugadorModalActivo]} onPress={() => onSeleccionar(j)}>
+          <Text style={[styles.chipDorsalTexto, seleccionado?.id === j.id && styles.chipTextoActivo]}>{j.dorsal != null && j.dorsal !== '' ? j.dorsal : (j.apodo || j.nombre || '?').slice(0, 3)}</Text>
         </TouchableOpacity>
       ))}
+      {seleccionado ? <Text style={styles.dorsalElegido}>Elegido: #{seleccionado.dorsal ?? '–'} {seleccionado.apodo || nombreCompleto(seleccionado)}</Text> : null}
     </View>
   );
 }
@@ -816,14 +893,16 @@ function ConvocatoriaTab({ convocatoria, partido, puedeCambiar, onCambiar }) {
   );
 }
 
-function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, golesVisitante, partido, finalizado, descanso, puedeCorregir, onCorregirMinutoFinal }) {
+function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, golesVisitante, partido, finalizado, descanso, puedeCorregir, onCorregirMinutoFinal, manuales, puedeEditarMinutos, onGuardarMinuto }) {
+  const [editMin, setEditMin] = useState(null); // { id, texto }
   const [generandoInforme, setGenerandoInforme] = useState(false);
   const [minutoCorregido, setMinutoCorregido] = useState(minutoActual);
 
   const contar = (tipo, equipo, filtroResultado) =>
     eventos.filter((e) => e.tipo === tipo && e.equipo === equipo && (!filtroResultado || filtroResultado(e.resultado))).length;
 
-  const minutos = calcularMinutosJugados(convocatoria, eventos, minutoActual);
+  const minutos = calcularMinutosJugados(convocatoria, eventos, minutoActual, manuales);
+  const dorsalDe = Object.fromEntries(convocatoria.map((c) => [c.jugador.id, c.jugador.dorsal]));
 
   // Estadísticas de los dos equipos (para la pestaña y para el informe en PDF).
   const aPuerta = (r) => r === 'gol' || r === 'parada';
@@ -915,12 +994,24 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
           </View>
 
           <Text style={styles.tituloResumen}>Minutos jugados</Text>
+          {puedeEditarMinutos && minutos.length > 0 && <Text style={styles.ayudaDorsal}>Toca los minutos de un jugador para corregirlos a mano.</Text>}
           {minutos.map((j) => (
-            <View key={j.id} style={styles.filaMinutos}>
-              <Text style={styles.nombreJugadorMinutos}>{j.nombre} {j.titular ? '' : '(susp.)'}</Text>
-              <Text style={styles.valorMinutos}>{j.jugo ? `${j.minutosJugados}'` : 'No jugó'}</Text>
+            <View key={j.id} style={[styles.filaMinutos, { alignItems: 'center' }]}>
+              <Text style={styles.nombreJugadorMinutos}>{dorsalDe[j.id] != null ? `${dorsalDe[j.id]} · ` : ''}{j.nombre} {j.titular ? '' : '(susp.)'}</Text>
+              {editMin && editMin.id === j.id ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TextInput style={styles.inputMinutoManual} keyboardType="number-pad" inputMode="numeric" maxLength={3} autoFocus value={editMin.texto} onChangeText={(t) => setEditMin({ id: j.id, texto: t.replace(/\D/g, '') })} />
+                  <TouchableOpacity style={styles.botonMinutoOk} onPress={() => { onGuardarMinuto(j.id, editMin.texto === '' ? null : Math.min(130, Number(editMin.texto))); setEditMin(null); }}><Text style={{ color: '#fff', fontWeight: '700' }}>OK</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => setEditMin(null)}><Text style={{ marginLeft: 8, color: '#6b7280' }}>✕</Text></TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity disabled={!puedeEditarMinutos} onPress={() => setEditMin({ id: j.id, texto: j.jugo ? String(j.minutosJugados) : '' })}>
+                  <Text style={styles.valorMinutos}>{j.manual ? '✎ ' : ''}{j.jugo ? `${j.minutosJugados}'` : 'No jugó'}{puedeEditarMinutos ? ' ✏️' : ''}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
+          {puedeEditarMinutos && Object.keys(manuales || {}).length > 0 && <Text style={styles.ayudaDorsal}>✎ = minutos puestos a mano. Para volver al cálculo automático, borra el número y pulsa OK.</Text>}
           {minutos.length === 0 && <Text style={styles.listaVacia}>No hay convocatoria guardada para este partido</Text>}
         </View>
       )}
@@ -999,7 +1090,7 @@ const styles = StyleSheet.create({
   filaOtroDorsal: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   botonListo: { backgroundColor: '#16a34a', borderRadius: 8, paddingHorizontal: 18, paddingVertical: 12 },
   botonListoTexto: { color: '#fff', fontWeight: '700' },
-  dorsalElegido: { fontSize: 13, fontWeight: '700', color: '#16a34a', marginBottom: 6 },
+  dorsalElegido: { fontSize: 13, fontWeight: '700', color: '#16a34a', marginBottom: 6, width: '100%' },
   modalFondoCentrado: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
   modalCajaCentral: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginVertical: 10 },
@@ -1023,6 +1114,13 @@ const styles = StyleSheet.create({
   chipTexto: { color: '#374151', fontWeight: '600' },
   chipTextoActivo: { color: '#ffffff' },
   listaJugadoresModal: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  inputMinutoManual: { width: 56, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, textAlign: 'center', fontSize: 15, backgroundColor: '#fff' },
+  botonMinutoOk: { backgroundColor: '#16a34a', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7, marginLeft: 8 },
+  chipDorsalModal: { minWidth: 52, height: 48, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  chipDorsalTexto: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  editarEvento: { fontSize: 16, marginLeft: 8, alignSelf: 'center' },
+  botonEliminarEvento: { borderWidth: 1, borderColor: '#dc2626', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginTop: 10 },
+  botonEliminarEventoTexto: { color: '#dc2626', fontWeight: '700' },
   chipJugadorModal: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: '#d1d5db' },
   chipJugadorModalActivo: { backgroundColor: '#111827', borderColor: '#111827' },
   listaVaciaModal: { fontSize: 12, color: '#9ca3af', marginBottom: 8 },

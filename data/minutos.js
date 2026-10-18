@@ -59,9 +59,15 @@ export function jugadoresEnBanquillo(convocatoria, eventos) {
   return convocatoria.filter((c) => !enCampo.has(c.jugador.id) && !expulsados.has(c.jugador.id)).map((c) => c.jugador);
 }
 
-export function calcularMinutosJugados(convocatoria, eventos, minutoFinal) {
+// manuales: { [jugadorId]: minutos } puestos a mano (valen más que lo que salga de los cambios).
+export function calcularMinutosJugados(convocatoria, eventos, minutoFinal, manuales = {}) {
   const { tramos } = recorrer(convocatoria, eventos);
   return convocatoria.map((c) => {
+    const man = manuales ? manuales[c.jugador.id] : undefined;
+    if (man !== undefined && man !== null && Number.isFinite(Number(man))) {
+      const m = Math.max(0, Math.round(Number(man)));
+      return { id: c.jugador.id, nombre: nombreCompleto(c.jugador), titular: Boolean(c.titular), jugo: m > 0, minutosJugados: m, manual: true };
+    }
     const t = tramos.get(c.jugador.id);
     if (!t) {
       return { id: c.jugador.id, nombre: nombreCompleto(c.jugador), titular: Boolean(c.titular), jugo: false, minutosJugados: 0 };

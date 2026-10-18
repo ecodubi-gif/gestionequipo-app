@@ -39,4 +39,10 @@ const ev4 = [cambio(2, 60, 4, 1), cambio(1, 30, 1, 4)];
 t('orden por minuto', min(calcularMinutosJugados(conv, ev4, 90), 1) === 60);
 // Minuto final por debajo de un cambio
 t('partido cortado a los 20', min(calcularMinutosJugados(conv, ev, 20), 1) === 20 && min(calcularMinutosJugados(conv, ev, 20), 4) === 0);
+// Minutos puestos a mano: mandan sobre los cambios, 0 = no jugó, vacío = automático
+const rm = calcularMinutosJugados(conv, ev, 90, { 1: 74, 4: 16, 5: 0, 2: null });
+t('manual: 74', min(rm, 1) === 74 && rm.find((x) => x.id === 1).manual === true);
+t('manual: suplente 16', min(rm, 4) === 16 && rm.find((x) => x.id === 4).jugo === true);
+t('manual 0 = no jugó', rm.find((x) => x.id === 5).jugo === false && min(rm, 5) === 0);
+t('null = automático', min(rm, 2) === 90 && !rm.find((x) => x.id === 2).manual);
 console.log(`minutos: ${ok} ok, ${mal} mal`);

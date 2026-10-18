@@ -223,6 +223,26 @@ export async function eliminarEventoApi(eventoId) {
   return peticion('DELETE', `/eventos/${eventoId}`);
 }
 
+// Corrige un evento ya apuntado (equipo, minuto, resultado, jugador…). Si el servidor aún no tiene la ruta, da error.
+export async function actualizarEventoApi(eventoId, datos) {
+  const { data } = await peticion('PUT', `/eventos/${eventoId}`, datos);
+  return data;
+}
+
+// Minutos jugados puestos a mano en un partido: { [jugadorId]: minutos }. Sin servidor actualizado, vacío.
+export async function listarMinutosManualesApi(partidoId) {
+  try {
+    const { data } = await peticion('GET', `/partidos/${partidoId}/minutos`);
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  } catch {
+    return {};
+  }
+}
+export async function guardarMinutoManualApi(partidoId, jugadorId, minutos) {
+  const { data } = await peticion('PUT', `/partidos/${partidoId}/minutos/${jugadorId}`, { minutos });
+  return data;
+}
+
 // ---------- Diario de entrenamientos ----------
 
 export async function listarEntrenamientosApi() {

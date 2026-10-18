@@ -1,5 +1,5 @@
 // Carga del partido anterior a un entreno (convocatoria + minutos jugados), con las llamadas a la API.
-import { obtenerConvocatoriaApi, listarEventosApi } from './apiClient';
+import { obtenerConvocatoriaApi, listarEventosApi, listarMinutosManualesApi } from './apiClient';
 import { calcularMinutosJugados } from './minutos';
 import { detectarPartidoPrevio } from './partidoPrevio';
 
@@ -7,11 +7,11 @@ import { detectarPartidoPrevio } from './partidoPrevio';
 export async function cargarPartidoPrevio(entrenamiento, entrenamientos, partidos) {
   const previo = detectarPartidoPrevio(entrenamiento, entrenamientos, partidos);
   if (!previo) return null;
-  const [conv, evs] = await Promise.all([obtenerConvocatoriaApi(previo.id), listarEventosApi(previo.id)]);
+  const [conv, evs, manuales] = await Promise.all([obtenerConvocatoriaApi(previo.id), listarEventosApi(previo.id), listarMinutosManualesApi(previo.id)]);
   const maxMinuto = evs.reduce((m, e) => Math.max(m, e.minuto || 0), 0);
   const sinMinutoFinal = previo.minuto_final == null;
   const minutoFinal = previo.minuto_final ?? Math.max(maxMinuto, 1);
-  return { partido: previo, convocatoria: conv, minutos: calcularMinutosJugados(conv, evs, minutoFinal), sinMinutoFinal };
+  return { partido: previo, convocatoria: conv, minutos: calcularMinutosJugados(conv, evs, minutoFinal, manuales), sinMinutoFinal };
 }
 
 /** Minutos jugados por jugador: { [id]: minutos } (o null si no hay partido anterior). */

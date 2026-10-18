@@ -8,6 +8,7 @@ import {
   obtenerConvocatoriaApi,
   listarEventosApi,
   obtenerRpePartidoApi,
+  listarMinutosManualesApi,
   guardarRpePartidoApi,
 } from '../data/apiClient';
 import { calcularMinutosJugados } from '../data/minutos';
@@ -30,19 +31,20 @@ export default function RpePartidoScreen({ navigation, route }) {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [u, p, conv, evs, guardado] = await Promise.all([
+      const [u, p, conv, evs, guardado, manuales] = await Promise.all([
         obtenerUsuario(),
         obtenerPartidoApi(partidoId),
         obtenerConvocatoriaApi(partidoId),
         listarEventosApi(partidoId),
         obtenerRpePartidoApi(partidoId),
+        listarMinutosManualesApi(partidoId),
       ]);
       setUsuario(u);
       setPartido(p);
       const maxMinuto = evs.reduce((m, e) => Math.max(m, e.minuto || 0), 0);
       const minutoFinal = p.minuto_final ?? Math.max(maxMinuto, 1);
       const dorsalDe = Object.fromEntries(conv.map((c) => [c.jugador.id, c.jugador.dorsal]));
-      const jugaron = calcularMinutosJugados(conv, evs, minutoFinal)
+      const jugaron = calcularMinutosJugados(conv, evs, minutoFinal, manuales)
         .filter((m) => m.jugo && m.minutosJugados > 0)
         .map((m) => ({ id: m.id, nombre: m.nombre, dorsal: dorsalDe[m.id], minutos: m.minutosJugados }))
         .sort((a, b) => (a.dorsal ?? 999) - (b.dorsal ?? 999));
