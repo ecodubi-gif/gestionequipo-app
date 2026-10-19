@@ -9,7 +9,7 @@ import { ROLES, calcularDimensiones, CAMPO_MAXIMO } from './tareas';
 import { posicionesCampo } from './campo';
 
 export const VERSION = 1;
-export const LIMITES = { jugadores: 64, elementos: 60, flechas: 40, texto: 40 };
+export const LIMITES = { jugadores: 64, elementos: 60, flechas: 60, texto: 40 };
 export const RANGO_UV = [-0.6, 1.6]; // lo más lejos de la zona (en su propio tamaño) que se puede dejar algo
 
 export const CAMPO_POR_DEFECTO = { id: null, nombre: 'Estadio Juan Benjumea', largo: CAMPO_MAXIMO.largo, ancho: CAMPO_MAXIMO.ancho };
@@ -25,6 +25,9 @@ export const FLECHAS = {
   conduccion: { etiqueta: 'Conducción', color: '#15803d', discontinua: false, ayuda: 'Jugador con balón' },
   desmarque: { etiqueta: 'Desmarque / carrera', color: '#7c3aed', discontinua: false, ayuda: 'Jugador sin balón' },
   presion: { etiqueta: 'Presión / repliegue', color: '#0891b2', discontinua: false, ayuda: 'Jugador sin balón' },
+  // Líneas sin punta para marcar el campo: delimitar espacios, carriles, alturas del bloque…
+  linea: { etiqueta: 'Línea continua', color: '#1d4ed8', discontinua: false, sinPunta: true, ayuda: 'Delimita un espacio' },
+  linea_disc: { etiqueta: 'Línea discontinua', color: '#db2777', discontinua: true, sinPunta: true, ayuda: 'Delimita un espacio' },
 };
 
 // Medidas reales en metros: largo = lado largo; ancho = el otro lado (en 'zona' y 'escalera' se pueden cambiar).

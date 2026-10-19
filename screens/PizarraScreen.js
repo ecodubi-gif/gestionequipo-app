@@ -250,7 +250,7 @@ export default function PizarraScreen({ navigation, route }) {
       </View>
       <Text style={styles.pista}>
         {modo === 'flecha'
-          ? `Arrastra sobre el campo para dibujar: ${FLECHAS[tipoFlecha].etiqueta.toLowerCase()} (${FLECHAS[tipoFlecha].discontinua ? 'discontinua = balón' : 'continua = jugador'}).`
+          ? `Arrastra sobre el campo para dibujar: ${FLECHAS[tipoFlecha].etiqueta.toLowerCase()} (${FLECHAS[tipoFlecha].sinPunta ? 'línea para delimitar espacios' : FLECHAS[tipoFlecha].discontinua ? 'discontinua = balón' : 'continua = jugador'}).`
           : 'Toca y arrastra jugadores, material, flechas o la zona verde para moverlos.'}
       </Text>
 
@@ -304,7 +304,7 @@ export default function PizarraScreen({ navigation, route }) {
             )}
             {flechaSel && (
               <>
-                <Text style={styles.selTitulo}>Flecha · {FLECHAS[flechaSel.tipo].etiqueta}</Text>
+                <Text style={styles.selTitulo}>{FLECHAS[flechaSel.tipo].sinPunta ? 'Línea' : 'Flecha'} · {FLECHAS[flechaSel.tipo].etiqueta}</Text>
                 <View style={styles.filaWrap}>
                   {Object.entries(FLECHAS).map(([k, f]) => (
                     <TouchableOpacity key={k} style={[styles.chip, flechaSel.tipo === k && { borderColor: f.color, backgroundColor: '#fff' }]} onPress={() => cambiar(cambiarTipoFlecha(dibujo, sel.i, k))}>
@@ -324,7 +324,7 @@ export default function PizarraScreen({ navigation, route }) {
 
         {/* ---- Pestañas ---- */}
         <View style={styles.pestanas}>
-          {[['elementos', 'Elementos'], ['flechas', 'Flechas'], ['zona', 'Zona y campo']].map(([k, t]) => (
+          {[['elementos', 'Elementos'], ['flechas', 'Flechas y líneas'], ['zona', 'Zona y campo']].map(([k, t]) => (
             <TouchableOpacity key={k} style={[styles.pestana, panel === k && styles.pestanaActiva]} onPress={() => setPanel(k)}>
               <Text style={[styles.pestanaTexto, panel === k && styles.pestanaTextoActiva]}>{t}</Text>
             </TouchableOpacity>
@@ -346,7 +346,7 @@ export default function PizarraScreen({ navigation, route }) {
 
         {panel === 'flechas' && (
           <View>
-            <Text style={styles.mini}>Continua = se mueve el jugador · Discontinua = se mueve el balón. El color dice de qué se trata.</Text>
+            <Text style={styles.mini}>Flechas: continua = se mueve el jugador · discontinua = se mueve el balón. Las líneas sin punta (azul continua, rosa discontinua) sirven para delimitar espacios.</Text>
             {Object.entries(FLECHAS).map(([k, f]) => (
               <TouchableOpacity
                 key={k}

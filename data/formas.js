@@ -192,6 +192,10 @@ export function formasTarea({ tarea, dibujo, campo, modo = 'vista', anchoMax = 3
     if (largo < 4) return;
     const ux = (b.x - a.x) / largo; const uy = (b.y - a.y) / largo;
     const cabeza = 9;
+    if (tipo.sinPunta) {
+      formas.push({ k: 'line', x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: tipo.color, sw: 2.4, dash: tipo.discontinua ? '7 5' : null });
+      return;
+    }
     formas.push({ k: 'line', x1: a.x, y1: a.y, x2: b.x - ux * cabeza * 0.6, y2: b.y - uy * cabeza * 0.6, stroke: tipo.color, sw: 2.4, dash: tipo.discontinua ? '7 5' : null });
     formas.push({ k: 'poly', pts: [[b.x, b.y], [b.x - ux * cabeza - uy * cabeza * 0.5, b.y - uy * cabeza + ux * cabeza * 0.5], [b.x - ux * cabeza + uy * cabeza * 0.5, b.y - uy * cabeza - ux * cabeza * 0.5]], fill: tipo.color, stroke: tipo.color, sw: 1 });
   });

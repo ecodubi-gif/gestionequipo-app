@@ -55,7 +55,7 @@ let f=P.anadirFlecha(a.dibujo,'pase',{u:0.1,v:0.1},{u:0.6,v:0.4});
 t('añadir flecha', f.dibujo.flechas.length===1&&f.dibujo.flechas[0].tipo==='pase');
 t('flecha de tipo inventado no se añade', P.anadirFlecha(d0,'magica',{u:0,v:0},{u:1,v:1}).ref===null);
 t('flechas: continua = jugador, discontinua = balón', P.FLECHAS.pase.discontinua&&P.FLECHAS.tiro.discontinua&&!P.FLECHAS.conduccion.discontinua&&!P.FLECHAS.desmarque.discontinua&&!P.FLECHAS.presion.discontinua);
-t('cada tipo de flecha tiene un color distinto', new Set(Object.values(P.FLECHAS).map(x=>x.color)).size===5);
+t('cada tipo de flecha tiene un color distinto', new Set(Object.values(P.FLECHAS).map(x=>x.color)).size===7);
 t('los colores de flecha no se confunden con los equipos', Object.values(P.FLECHAS).every(x=>x.color!==P.COLOR_JUGADOR.ataque&&x.color!==P.COLOR_JUGADOR.defensa&&x.color!==P.COLOR_JUGADOR.comodin));
 t('colores de equipo distintos', new Set(Object.values(P.COLOR_JUGADOR)).size===4);
 let g=P.cambiarElemento(f.dibujo,0,{giro:true});
@@ -127,7 +127,7 @@ t('normalizar: campo_id no entero → null', n.campo_id===null);
 t('normalizar es idempotente', JSON.stringify(P.normalizarDibujo(n))===JSON.stringify(n));
 const muchos={zona:{x:0,y:0},jugadores:Array.from({length:200},()=>({rol:'ataque',u:0,v:0})),elementos:Array.from({length:200},()=>({tipo:'cono',u:0,v:0})),flechas:Array.from({length:200},()=>({tipo:'pase',u1:0,v1:0,u2:1,v2:1}))};
 const nm=P.normalizarDibujo(muchos);
-t('normalizar: respeta los máximos', nm.jugadores.length===64&&nm.elementos.length===60&&nm.flechas.length===40);
+t('normalizar: respeta los máximos', nm.jugadores.length===64&&nm.elementos.length===60&&nm.flechas.length===60);
 t('el nuevo dibujo ya es normal', JSON.stringify(P.normalizarDibujo(d0))===JSON.stringify(d0));
 // --- avisos y campos
 t('aviso si la zona no cabe', P.avisosDibujo(d0,{...tarea,largo:80,ancho:30},campo).some(x=>x.includes('no cabe')));
@@ -148,3 +148,10 @@ t('catálogo: todos los elementos pedidos', ['cono','marca','porteria','miniport
   t('el balón mide 22 cm', P.medidasElemento(b.elementos[0]).largo === 0.22);
 }
 console.log(`pizarra: ${ok} ok, ${mal} mal`); process.exit(mal?1:0);
+{
+  const { FLECHAS: F, anadirFlecha: af } = await import('./pizarra.mjs');
+  const { formasTarea } = await import('./formas.mjs').catch(() => ({}));
+  const d0 = { flechas: [], jugadores: [], elementos: [] };
+  const r = af(d0, 'linea_disc', { u: 0.1, v: 0.1 }, { u: 0.9, v: 0.1 });
+  console.log(F.linea.sinPunta && F.linea_disc.discontinua && r.dibujo.flechas.length === 1 ? 'lineas OK' : 'MAL lineas');
+}
