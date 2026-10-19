@@ -50,9 +50,9 @@ export const SECCIONES = [
   {
     id: 'contexto', icono: '🏟️', titulo: 'Contexto del partido',
     campos: [
-      { id: 'ctx_dim', etiqueta: 'Dimensiones del campo', tipo: 'texto', ayuda: 'Ej: 100 × 62 m' },
-      { id: 'ctx_cesped', etiqueta: 'Césped', tipo: 'opciones', opciones: ['Natural', 'Artificial', 'Tierra'] },
-      { id: 'ctx_estado', etiqueta: 'Estado del terreno', tipo: 'texto' },
+      { id: 'ctx_dim', soloFuera: true, etiqueta: 'Dimensiones del campo', tipo: 'texto', ayuda: 'Ej: 100 × 62 m' },
+      { id: 'ctx_cesped', soloFuera: true, etiqueta: 'Césped', tipo: 'opciones', opciones: ['Natural', 'Artificial', 'Tierra'] },
+      { id: 'ctx_estado', soloFuera: true, etiqueta: 'Estado del terreno', tipo: 'texto' },
       { id: 'ctx_necesidad', etiqueta: 'Necesidad de puntos y racha', tipo: 'largo', ayuda: 'La clasificación y los últimos 5 ya salen en la ficha' },
     ],
   },
@@ -101,13 +101,17 @@ export const estaVacio = (informe) => {
 };
 
 // Lo que se enseña en la ficha del rival: por sección, solo los campos que tienen respuesta.
-export function resumenInforme(informe) {
+// Dimensiones, césped y estado del terreno solo importan cuando jugamos fuera. esLocal === true los oculta.
+export const campoVisible = (c, esLocal) => !(esLocal === true && c.soloFuera);
+
+export function resumenInforme(informe, esLocal) {
   const l = limpiarInforme(informe);
   return SECCIONES
     .map((s) => {
       let grupo = '';
       const lineas = [];
       for (const c of s.campos) {
+        if (!campoVisible(c, esLocal)) continue;
         if (c.grupo) grupo = c.grupo;
         const valor = c.tipo === 'goles' ? [textoGoles(l.datos), l.datos[c.id]].filter(Boolean).join('. ') : l.datos[c.id];
         if (valor) lineas.push({ id: c.id, grupo, etiqueta: c.etiqueta, valor, formacion: Boolean(c.formacion) });
@@ -118,10 +122,11 @@ export function resumenInforme(informe) {
 }
 
 // Cuántos campos de las secciones se han rellenado (para "6 de 24").
-export function progreso(informe) {
+export function progreso(informe, esLocal) {
   const l = limpiarInforme(informe);
-  const total = SECCIONES.reduce((n, s) => n + s.campos.length, 0);
-  return { hechos: Object.keys(l.datos).filter((k) => !/^goles_(\d{2}|tramos)$/.test(k)).length, total };
+  const campos = SECCIONES.flatMap((s) => s.campos).filter((c) => campoVisible(c, esLocal));
+  const ids = new Set(campos.map((c) => c.id));
+  return { hechos: Object.keys(l.datos).filter((k) => ids.has(k)).length, total: campos.length };
 }
 
 export const jugadoresPorTipo = (informe, tipo) => limpiarInforme(informe).jugadores.filter((j) => j.tipo === tipo);

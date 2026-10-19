@@ -274,7 +274,7 @@ export default function LigaScreen({ navigation }) {
               {usuario && ROLES_VER_SCOUTING.includes(usuario.role) && (() => {
                 const inf = scouting[proximo.rival];
                 const hay = inf && !estaVacio(inf);
-                const p = progreso(inf);
+                const p = progreso(inf, proximo.esLocal);
                 return (
                   <View style={styles.tarjeta} testID="scouting-card">
                     <Text style={styles.titulo}>🔎 Scouting de {corto(proximo.rival)}</Text>
@@ -284,7 +284,7 @@ export default function LigaScreen({ navigation }) {
                         <Text style={styles.mini}>
                           {p.hechos} de {p.total} campos{inf.editado_por ? ` · ${inf.editado_por}` : ''}{inf.actualizado ? ` · ${fechaLarga(inf.actualizado.slice(0, 10))}` : ''}
                         </Text>
-                        {resumenInforme(inf).map((s) => (
+                        {resumenInforme(inf, proximo.esLocal).map((s) => (
                           <View key={s.id}>
                             <Text style={styles.etiqueta}>{s.icono} {s.titulo}</Text>
                             {s.id === 'sistema' && s.lineas.some((l) => l.formacion) && (
@@ -322,8 +322,11 @@ export default function LigaScreen({ navigation }) {
                         <Text style={styles.enlace}>🕘 Ver el historial de cambios</Text>
                       </TouchableOpacity>
                     )}
+                    <TouchableOpacity style={[styles.boton, { backgroundColor: '#0f766e' }]} onPress={() => navigation.navigate('Enfrentamiento', { rival: proximo.rival })} testID="enfrentamiento-abrir">
+                      <Text style={styles.botonTexto}>♟️ Enfrentamiento de sistemas</Text>
+                    </TouchableOpacity>
                     {puedeEditar && (
-                      <TouchableOpacity style={[styles.boton, { backgroundColor: '#7c3aed' }]} onPress={() => navigation.navigate('Scouting', { equipo: proximo.rival, informe: inf || null })} testID="scouting-editar">
+                      <TouchableOpacity style={[styles.boton, { backgroundColor: '#7c3aed' }]} onPress={() => navigation.navigate('Scouting', { equipo: proximo.rival, informe: inf || null, esLocal: proximo.esLocal })} testID="scouting-editar">
                         <Text style={styles.botonTexto}>{hay ? '✏️ Editar el informe' : '📝 Rellenar el informe'}</Text>
                       </TouchableOpacity>
                     )}

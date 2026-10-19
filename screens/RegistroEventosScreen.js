@@ -541,6 +541,9 @@ export default function RegistroEventosScreen({ route, navigation }) {
         <TouchableOpacity style={styles.chipVista} onPress={() => navigation.navigate('Alineacion', { partidoId })}>
           <Text style={styles.chipVistaTexto} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>Alineación</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.chipVista} onPress={() => navigation.navigate('Enfrentamiento', { partidoId, rival: partido[partido.es_local ? 'equipo_visitante' : 'equipo_local'] })}>
+          <Text style={styles.chipVistaTexto} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>Sistemas</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.chipVista} onPress={() => navigation.navigate('Abp', { partidoId })}>
           <Text style={styles.chipVistaTexto} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>ABP</Text>
         </TouchableOpacity>

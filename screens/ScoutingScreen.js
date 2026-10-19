@@ -5,7 +5,7 @@ import { confirmar } from '../data/confirmar';
 import Formacion from '../components/Formacion';
 import GolesRival from '../components/GolesRival';
 import { hayGoles } from '../data/goles';
-import { SECCIONES, TIPOS_JUGADOR, MAX_JUGADORES, limpiarInforme, progreso, lineasFormacion } from '../data/scouting';
+import { SECCIONES, TIPOS_JUGADOR, MAX_JUGADORES, limpiarInforme, progreso, lineasFormacion, campoVisible } from '../data/scouting';
 
 const MORADO = '#7c3aed';
 
@@ -13,6 +13,7 @@ const MORADO = '#7c3aed';
 export default function ScoutingScreen({ navigation, route }) {
   const equipo = route.params?.equipo || '';
   const inicial = route.params?.informe;
+  const esLocal = route.params?.esLocal;
   const [datos, setDatos] = useState({ ...((inicial && inicial.datos) || {}) });
   const [jugadores, setJugadores] = useState(((inicial && inicial.jugadores) || []).map((j) => ({ ...j })));
   const [abierta, setAbierta] = useState('sistema');
@@ -30,7 +31,7 @@ export default function ScoutingScreen({ navigation, route }) {
     setGuardado(false);
   };
 
-  const p = progreso({ datos, jugadores });
+  const p = progreso({ datos, jugadores }, esLocal);
 
   const guardar = async () => {
     setError('');
@@ -65,7 +66,9 @@ export default function ScoutingScreen({ navigation, route }) {
         <Text style={styles.mini}>{p.hechos} de {p.total} campos rellenados · todo es opcional</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {SECCIONES.map((s) => {
+        {SECCIONES.map((sec) => {
+          const s = { ...sec, campos: sec.campos.filter((c) => campoVisible(c, esLocal)) };
+          if (s.campos.length === 0) return null;
           const abiertaEsta = abierta === s.id;
           const hechos = s.campos.filter((c) => String(datos[c.id] || '').trim() || (c.tipo === 'goles' && hayGoles(datos))).length;
           return (

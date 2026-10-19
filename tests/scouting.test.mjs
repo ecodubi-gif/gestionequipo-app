@@ -35,3 +35,10 @@ const c1 = cambiosEntre({ datos: { dibujo: '1-4-4-2', tr_ref: 'x' }, jugadores: 
 t('cambios: cambiado, nuevo y quitado', c1.some((c) => c.etiqueta === 'Dibujo base' && c.tipo === 'cambiado') && c1.some((c) => c.tipo === 'quitado' && c.etiqueta === 'Quién inicia la contra') && c1.some((c) => c.tipo === 'nuevo' && /jugador/.test(c.etiqueta)));
 t('cambios: nada', cambiosEntre({ datos: { dibujo: 'a' } }, { datos: { dibujo: ' a ' } }).length === 0);
 console.log(`scouting: ${ok} ok, ${mal} mal`);
+{
+  const { resumenInforme: ri, progreso: pg } = await import('./scouting.mjs');
+  const inf = { datos: { ctx_dim: '100 x 60', ctx_cesped: 'Natural', ctx_necesidad: 'Necesita puntos', dibujo: '1-4-4-2' }, jugadores: [] };
+  const ctx = (e) => (ri(inf, e).find((s) => s.id === 'contexto') || { lineas: [] }).lineas.map((l) => l.id).join(',');
+  console.log(ctx(false) === 'ctx_dim,ctx_cesped,ctx_necesidad' && ctx(undefined) === 'ctx_dim,ctx_cesped,ctx_necesidad' && ctx(true) === 'ctx_necesidad' ? 'local/visitante OK' : 'MAL local/visitante ' + ctx(true));
+  console.log(pg(inf, true).hechos === 2 && pg(inf, false).hechos === 4 && pg(inf, true).total === pg(inf, false).total - 3 ? 'progreso OK' : 'MAL progreso');
+}
