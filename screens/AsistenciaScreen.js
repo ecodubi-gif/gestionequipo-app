@@ -195,6 +195,10 @@ export default function AsistenciaScreen({ route, navigation }) {
         <Text style={styles.enlacePreparacionTexto}>🏋️ Preparación: disponibilidad, plan de la sesión y notas</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity style={styles.enlaceEntreno} onPress={() => navigation.navigate('EntrenoDirecto', { entrenamientoId })} testID="abrir-entreno-directo">
+        <Text style={styles.enlaceEntrenoTexto}>🏃 Entreno: seguir cada tarea en el campo</Text>
+      </TouchableOpacity>
+
       <SeccionMaterial
         entrenamiento={entrenamiento}
         setEntrenamiento={setEntrenamiento}
@@ -450,7 +454,9 @@ const styles = StyleSheet.create({
   titulo: { fontSize: 22, fontWeight: '700', color: '#111827', textTransform: 'capitalize' },
   subtitulo: { fontSize: 14, color: '#6b7280', marginTop: 4 },
   enlacePreparacion: { backgroundColor: '#f5f3ff', borderRadius: 10, padding: 12, marginTop: 10, marginBottom: 4, borderWidth: 1, borderColor: '#ddd6fe' },
-  enlacePreparacionTexto: { color: '#6d28d9', fontSize: 12, textAlign: 'center', fontWeight: '700' },
+  enlacePreparacionTexto: { color: '#6d28d9', fontSize: 14, textAlign: 'center', fontWeight: '800' },
+  enlaceEntreno: { backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginTop: 8, marginBottom: 4, borderWidth: 1, borderColor: '#86efac' },
+  enlaceEntrenoTexto: { color: '#15803d', fontSize: 14, textAlign: 'center', fontWeight: '800' },
   cajaMaterial: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 14, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
   filaTituloMaterial: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   tituloMaterial: { fontSize: 14, fontWeight: '700', color: '#111827' },

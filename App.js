@@ -26,6 +26,7 @@ import CamposScreen from './screens/CamposScreen';
 import LigaScreen from './screens/LigaScreen';
 import ScoutingScreen from './screens/ScoutingScreen';
 import EnfrentamientoScreen from './screens/EnfrentamientoScreen';
+import EntrenoDirectoScreen from './screens/EntrenoDirectoScreen';
 import ScoutingHistorialScreen from './screens/ScoutingHistorialScreen';
 import DialogoHost from './components/DialogoHost';
 import './data/dialogos';
@@ -119,6 +120,7 @@ function AppConCuenta() {
         <Stack.Screen name="Scouting" component={ScoutingScreen} options={{ title: 'Informe del rival' }} />
         <Stack.Screen name="ScoutingHistorial" component={ScoutingHistorialScreen} options={{ title: 'Historial del informe' }} />
         <Stack.Screen name="Enfrentamiento" component={EnfrentamientoScreen} options={{ title: 'Enfrentamiento de sistemas' }} />
+        <Stack.Screen name="EntrenoDirecto" component={EntrenoDirectoScreen} options={{ title: 'Entreno en el campo' }} />
         <Stack.Screen name="Semana" component={SemanaScreen} options={{ title: 'Semana' }} />
         <Stack.Screen name="Alineacion" component={AlineacionScreen} options={{ title: 'Alineación y cambios' }} />
         <Stack.Screen name="Abp" component={AbpScreen} options={{ title: 'Balón parado' }} />
