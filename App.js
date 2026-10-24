@@ -3,6 +3,7 @@ import { View, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { BotonAtras, BotonInicio } from './components/BotonesCabecera';
 import { StatusBar } from 'expo-status-bar';
 
 import LoginScreen from './screens/LoginScreen';
@@ -90,7 +91,15 @@ function AppConCuenta() {
     <DialogoHost />
     <NavigationContainer>
       <StatusBar style="light" />
-      <Stack.Navigator initialRouteName={rutaInicial}>
+      <Stack.Navigator
+        initialRouteName={rutaInicial}
+        screenOptions={{
+          headerBackVisible: false,
+          headerLeft: () => <BotonAtras />,
+          headerRight: () => <BotonInicio />,
+          headerTitleStyle: { fontWeight: '700' },
+        }}
+      >
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         <Stack.Screen
           name="Panel"
