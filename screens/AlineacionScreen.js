@@ -92,7 +92,7 @@ export default function AlineacionScreen({ route }) {
   const datosPartido = { equipo: 'C.D. Herrera', rival: partido ? (partido.es_local ? partido.equipo_visitante : partido.equipo_local) : '', local: partido ? partido.equipo_local : '', visitante: partido ? partido.equipo_visitante : '' };
   const imprimir = (todos) => {
     const lista = todos ? momentos : [activo];
-    const html = `<html><body>${lista.map((m, k) => htmlMomento(m, momentos[momentos.findIndex((x) => x.id === m.id) - 1] || null, jugadoresImpresion, datosPartido, k > 0)).join('')}</body></html>`;
+    const html = lista.map((m) => htmlMomento(m, momentos[momentos.findIndex((x) => x.id === m.id) - 1] || null, jugadoresImpresion, datosPartido, false));
     generarDocumento(html, 'la alineación');
   };
 

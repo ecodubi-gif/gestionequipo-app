@@ -30,27 +30,61 @@ export async function compartirWhatsApp(texto) {
   }
 }
 
-// En el navegador: convierte el HTML en un PDF de verdad (varias páginas A4) y lo comparte con el menú del móvil
-// o, si no existe, lo descarga. Devuelve false si no ha podido, para caer en el diálogo de impresión.
-async function pdfEnNavegador(html, nombre, horizontal = false) {
-  let iframe = null;
+// Escribe un HTML dentro de un iframe fuera de pantalla y espera a que pinte. Devuelve { iframe, doc }.
+async function iframeConHtml(html, ancho, alto) {
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${ancho}px;height:${alto}px;border:0;`;
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  doc.open();
+  doc.write(/^\s*(<!doctype|<html)/i.test(html) ? html : `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">${html}</body></html>`);
+  doc.close();
+  await new Promise((r) => setTimeout(r, 600)); // que termine de pintar (SVG, tipos de letra)
+  return { iframe, doc };
+}
+
+// Los navegadores del móvil limitan el tamaño del lienzo: por encima de unos 12 millones de píxeles sale en blanco.
+const escalaSegura = (ancho, alto, maxima = 2) => Math.max(0.5, Math.min(maxima, Math.sqrt(12e6 / (ancho * alto)), 16000 / alto));
+
+// En el navegador: convierte el HTML en un PDF de verdad y lo comparte con el menú del móvil o, si no existe, lo descarga.
+// Si recibe una lista de hojas, cada una ocupa una página entera (así no se juntan en un lienzo gigante).
+// Devuelve false si no ha podido, para caer en el diálogo de impresión.
+async function pdfEnNavegador(contenido, nombre, horizontal = false) {
+  const iframes = [];
   try {
-    iframe = document.createElement('iframe');
-    iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${horizontal ? 1123 : 794}px;height:${horizontal ? 794 : 1123}px;border:0;`;
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    await new Promise((r) => setTimeout(r, 600)); // que termine de pintar (SVG, tipos de letra)
+    const ancho = horizontal ? 1123 : 794;
     const html2pdf = (await import('html2pdf.js')).default;
-    const blob = await html2pdf().set({
-      margin: [8, 8, 8, 8],
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, windowWidth: horizontal ? 1123 : 794 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: horizontal ? 'landscape' : 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['.bloque', '.tarea'] },
-    }).from(doc.body).outputPdf('blob');
+    const jsPDF = { unit: 'mm', format: 'a4', orientation: horizontal ? 'landscape' : 'portrait' };
+    let blob;
+    if (Array.isArray(contenido)) {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF: JsPDF } = await import('jspdf');
+      const pdf = new JsPDF(jsPDF);
+      for (let i = 0; i < contenido.length; i++) {
+        const { iframe, doc } = await iframeConHtml(contenido[i], ancho, horizontal ? 794 : 1123);
+        iframes.push(iframe);
+        const alto = Math.max(doc.body.scrollHeight, 100);
+        const canvas = await html2canvas(doc.body, { scale: escalaSegura(ancho, alto), useCORS: true, backgroundColor: '#ffffff', windowWidth: ancho, windowHeight: alto, height: alto });
+        iframe.remove();
+        if (i > 0) pdf.addPage();
+        const pw = pdf.internal.pageSize.getWidth() - 16;
+        const ph = pdf.internal.pageSize.getHeight() - 16;
+        const k = Math.min(pw / canvas.width, ph / canvas.height);
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 8, 8, canvas.width * k, canvas.height * k);
+      }
+      blob = pdf.output('blob');
+    } else {
+      const { iframe, doc } = await iframeConHtml(contenido, ancho, horizontal ? 794 : 1123);
+      iframes.push(iframe);
+      const alto = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, 100);
+      blob = await html2pdf().set({
+        margin: [8, 8, 8, 8],
+        image: { type: 'jpeg', quality: 0.92 },
+        html2canvas: { scale: escalaSegura(ancho, alto), useCORS: true, backgroundColor: '#ffffff', windowWidth: ancho },
+        jsPDF,
+        pagebreak: { mode: ['css', 'legacy'], avoid: ['.bloque', '.tarea'] },
+      }).from(doc.body).outputPdf('blob');
+    }
     const archivo = new File([blob], `${nombre}.pdf`, { type: 'application/pdf' });
     if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
       try {
@@ -72,7 +106,7 @@ async function pdfEnNavegador(html, nombre, horizontal = false) {
   } catch (e) {
     return false;
   } finally {
-    if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    iframes.forEach((f) => { if (f.parentNode) f.parentNode.removeChild(f); });
   }
 }
 
@@ -82,9 +116,10 @@ async function pdfEnNavegador(html, nombre, horizontal = false) {
  * En el navegador generamos el PDF y lo compartimos con el menú del dispositivo (WhatsApp, correo…) o lo descargamos.
  * Solo si eso falla abrimos el diálogo de impresión del navegador, donde se puede elegir "Guardar como PDF".
  */
-export async function generarDocumento(html, nombreError = 'el documento', opciones = {}) {
+export async function generarDocumento(contenido, nombreError = 'el documento', opciones = {}) {
+  const html = Array.isArray(contenido) ? contenido.map((h, i) => (i > 0 ? `<div style="page-break-before:always"></div>${h}` : h)).join('') : contenido;
   if (Platform.OS === 'web') {
-    if (await pdfEnNavegador(html, nombreArchivo(nombreError), Boolean(opciones.horizontal))) return;
+    if (await pdfEnNavegador(contenido, nombreArchivo(nombreError), Boolean(opciones.horizontal))) return;
     const ventana = window.open('', '_blank');
     if (!ventana) {
       Alert.alert(

@@ -164,7 +164,7 @@ export default function AbpScreen({ route }) {
 
   const datosImpresion = () => Object.fromEntries(convocados.map((j) => [j.id, { dorsal: j.dorsal, nombre: corto(j) }]));
   const cabecera = { equipo: partido?.equipo_local || '', rival: partido?.equipo_visitante || '' };
-  const imprimir = (lista) => generarDocumento(lista.map((j, i) => htmlJugada(j, asigDe(j), datosImpresion(), cabecera, i > 0)).join(''), 'el balón parado', { horizontal: true });
+  const imprimir = (lista) => generarDocumento(lista.map((j) => htmlJugada(j, asigDe(j), datosImpresion(), cabecera, false)), 'el balón parado', { horizontal: true });
 
   if (cargando) return <ActivityIndicator style={{ marginTop: 40 }} />;
 
