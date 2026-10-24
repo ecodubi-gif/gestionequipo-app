@@ -1,0 +1,10 @@
+import { cortesDePagina } from './paginasPdf.mjs';
+let ok = 0, mal = 0;
+const t = (n, c) => { if (c) ok++; else { mal++; console.log('MAL:', n); } };
+t('cabe en una página', JSON.stringify(cortesDePagina(900, 1000)) === '[0,900]');
+t('corta a la altura de página', JSON.stringify(cortesDePagina(2500, 1000)) === '[0,1000,2000,2500]');
+t('no parte un bloque', JSON.stringify(cortesDePagina(1500, 1000, [{ top: 900, bottom: 1100 }])) === '[0,900,1500]');
+t('bloque más alto que la página se parte igual', JSON.stringify(cortesDePagina(2500, 1000, [{ top: 500, bottom: 1900 }])) === '[0,1000,2000,2500]');
+t('salto forzado', JSON.stringify(cortesDePagina(1500, 1000, [], [600])) === '[0,600,1500]');
+t('salto forzado en la última página', JSON.stringify(cortesDePagina(900, 1000, [], [600])) === '[0,600,900]');
+console.log('paginas:', ok, 'ok', mal, 'mal');
