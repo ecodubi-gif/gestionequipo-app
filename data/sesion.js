@@ -1,6 +1,7 @@
 // La sesión completa: el orden de los bloques, cuánto dura cada cosa, a qué hora empieza,
 // y la hoja imprimible.
 import { materialDeItems, textoMaterial } from './material';
+import { programaDe } from './programaSesion';
 import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, posturasEstiramiento, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
 import { OBJETIVOS, REFERENCIAS, ROLES, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from './tareas';
 import { formatearFechaCorta } from './fecha';
@@ -31,6 +32,7 @@ export function sumarHora(horaHHMM, minutos) {
 // Devuelve los bloques en orden con su duración y su inicio (en minutos desde que empieza la sesión).
 export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
   const textos = entrenamiento.bloques || {};
+  const programa = programaDe(entrenamiento, plantilla);
   const items = [];
   let reloj = 0;
   const anadir = (item) => {
@@ -41,11 +43,11 @@ export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
   // El preventivo y la movilidad se pueden apagar en una sesión concreta (preventivo_activa / movilidad_activa = false).
   if (textos.preventivo_activa !== false) anadir({
     clave: 'preventivo', titulo: 'Trabajo preventivo neuromuscular', responsable: 'Preparador físico', minutos: MIN_PREVENTIVO,
-    estaciones: plantilla ? plantilla.preventivo : null, sinPrograma: !plantilla,
+    estaciones: plantilla || programa.propioPrev ? programa.preventivo : null, sinPrograma: !plantilla && !programa.propioPrev, propio: programa.propioPrev,
   });
   if (textos.movilidad_activa !== false) anadir({
     clave: 'movilidad', titulo: 'Movilidad dinámica integrada', responsable: 'Preparador físico', minutos: MIN_MOVILIDAD,
-    tramos: plantilla ? plantilla.movilidad : null, sinPrograma: !plantilla,
+    tramos: plantilla || programa.propioMov ? programa.movilidad : null, sinPrograma: !plantilla && !programa.propioMov, propio: programa.propioMov,
   });
 
   for (const b of BLOQUES_ENTRENADOR) {

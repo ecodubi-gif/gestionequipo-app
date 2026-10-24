@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   obtenerEntrenamientoApi, listarEntrenamientosApi, listarPlantillasEntrenoApi, listarTareasApi, listarJugadoresApi, listarCamposApi,
+  obtenerUsuario, guardarBloquesEntrenamientoApi, guardarPlantillaEntrenoApi,
 } from '../data/apiClient';
 import { tipoDeSesion, posturasEstiramiento } from '../data/planSesion';
 import { construirSesion } from '../data/sesion';
@@ -16,6 +17,8 @@ import {
   resumenSeguimiento, textoSeguimiento, mmss, textoTrabajo,
 } from '../data/seguimientoEntreno';
 import DibujoTarea from '../components/DibujoTarea';
+import ProgramaEditable from '../components/ProgramaEditable';
+import { CLAVE_PROG } from '../data/programaSesion';
 
 const clave = (id) => `entreno_directo_${id}`;
 
@@ -53,13 +56,14 @@ export default function EntrenoDirectoScreen({ route }) {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [ent, todos, plantillas, tareas, jugadores, campos] = await Promise.all([
+      const [ent, todos, plantillas, tareas, jugadores, campos, usuario] = await Promise.all([
         obtenerEntrenamientoApi(entrenamientoId),
         listarEntrenamientosApi(),
         listarPlantillasEntrenoApi().catch(() => null),
         listarTareasApi(entrenamientoId).catch(() => null),
         listarJugadoresApi().catch(() => []),
         listarCamposApi().catch(() => []),
+        obtenerUsuario().catch(() => null),
       ]);
       const { tipo } = tipoDeSesion(ent, todos);
       const sesion = construirSesion({ entrenamiento: ent, plantilla: plantillas ? plantillas.find((p) => p.numero === tipo) : null, tareas: tareas || [], tipo });
@@ -67,7 +71,7 @@ export default function EntrenoDirectoScreen({ route }) {
       let guardado = null;
       try { guardado = JSON.parse(await AsyncStorage.getItem(clave(entrenamientoId))); } catch (e) { /* sin guardado */ }
       setEstado(normalizarEstado(guardado, pasos));
-      setDatos({ ent, tipo, pasos, campos, tareasDisponibles: tareas !== null, jugadoresPorId: Object.fromEntries(jugadores.map((j) => [j.id, j])) });
+      setDatos({ ent, tipo, pasos, campos, rol: usuario ? usuario.role : null, hayPlantilla: Boolean(plantillas && plantillas.find((p) => p.numero === tipo)), tareasDisponibles: tareas !== null, jugadoresPorId: Object.fromEntries(jugadores.map((j) => [j.id, j])) });
     } catch (e) {
       setError(e.message || 'No se pudo cargar el entreno');
     } finally {
@@ -85,6 +89,17 @@ export default function EntrenoDirectoScreen({ route }) {
     })();
     return () => { try { if (cerrojo) cerrojo.release(); } catch (e) { /* nada */ } };
   }, []);
+
+  // Cambios de preventivo y movilidad: se guardan en el servidor y se vuelve a leer la sesión.
+  const guardarProg = async (tipoProg, lista) => {
+    await guardarBloquesEntrenamientoApi(entrenamientoId, { [CLAVE_PROG[tipoProg]]: lista });
+    await cargar();
+  };
+  const guardarProgPlantilla = async (tipoProg, lista) => {
+    if (lista.length === 0) throw new Error('La sugerencia necesita al menos un elemento.');
+    await guardarPlantillaEntrenoApi(datos.tipo, { [tipoProg]: lista });
+    await cargar();
+  };
 
   const cambiar = (fn) => {
     setEstado((prev) => {
@@ -117,6 +132,8 @@ export default function EntrenoDirectoScreen({ route }) {
         datos={datos}
         estado={estado}
         cambiar={cambiar}
+        guardarProg={guardarProg}
+        guardarProgPlantilla={guardarProgPlantilla}
         alLista={() => setAbierto(null)}
         irA={(i) => setAbierto(Math.max(0, Math.min(pasos.length - 1, i)))}
       />
@@ -190,7 +207,7 @@ export default function EntrenoDirectoScreen({ route }) {
 }
 
 // Un paso (tarea o bloque) en pantalla grande, con el cronómetro de series y pausas.
-function DetallePaso({ paso, indice, total, datos, estado, cambiar, alLista, irA }) {
+function DetallePaso({ paso, indice, total, datos, estado, cambiar, guardarProg, guardarProgPlantilla, alLista, irA }) {
   const d = datosPaso(estado, paso.id);
   const [fase, setFase] = useState('parado'); // 'parado' | 'trabajo' | 'pausa' | 'detenido'
   const [fin, setFin] = useState(0);
@@ -253,6 +270,7 @@ function DetallePaso({ paso, indice, total, datos, estado, cambiar, alLista, irA
   const roles = ['ataque', 'defensa', 'comodin', 'portero'];
   const nombreJ = (j) => (j ? `${j.dorsal ? `#${j.dorsal} ` : ''}${j.apodo || j.nombre}` : '?');
   const bloque = paso.bloqueDatos;
+  const esPrograma = Boolean(bloque) && (bloque.clave === 'preventivo' || bloque.clave === 'movilidad');
   const posturas = bloque && bloque.clave === 'estiramientos' && bloque.texto ? posturasEstiramiento(bloque.texto) : null;
 
   const colorFase = fase === 'trabajo' ? '#16a34a' : fase === 'pausa' ? '#ca8a04' : fase === 'detenido' ? '#6b7280' : '#2563eb';
@@ -328,8 +346,14 @@ function DetallePaso({ paso, indice, total, datos, estado, cambiar, alLista, irA
 
         {bloque && (
           <View style={{ marginTop: 8 }}>
-            {(bloque.estaciones || []).map((e, i) => <Text key={i} style={styles.rolLinea}><Text style={{ fontWeight: '800' }}>{i + 1}. {e.zona}: </Text>{e.ejercicio}{e.series || e.detalle ? ` (${[e.series ? `${e.series} series` : '', e.detalle].filter(Boolean).join(' × ')})` : ''}</Text>)}
-            {(bloque.tramos || []).map((m, i) => <Text key={i} style={styles.rolLinea}><Text style={{ fontWeight: '800' }}>{m.tiempo} {m.zona}: </Text>{m.descripcion}</Text>)}
+            {esPrograma && (
+              <ProgramaEditable
+                tipo={bloque.clave} lista={(bloque.clave === 'preventivo' ? bloque.estaciones : bloque.tramos) || []} propio={Boolean(bloque.propio)}
+                puedeEditar={['entrenador', 'segundo_entrenador', 'preparador_fisico'].includes(datos.rol)}
+                puedePlantilla={datos.rol === 'preparador_fisico' && datos.hayPlantilla} numeroEntreno={datos.tipo}
+                onGuardarSesion={(lista) => guardarProg(bloque.clave, lista)} onGuardarPlantilla={(lista) => guardarProgPlantilla(bloque.clave, lista)}
+              />
+            )}
             {(bloque.postas || []).map((x, i) => <Text key={i} style={styles.rolLinea}><Text style={{ fontWeight: '800' }}>{x.titulo}. </Text>Físico: {x.fisico} Técnico: {x.tecnico}</Text>)}
             {posturas ? posturas.posturas.map((x, i) => <Text key={i} style={styles.rolLinea}>• {x}</Text>) : !!bloque.texto && <Text style={styles.rolLinea}>{bloque.texto}</Text>}
             {posturas && !!posturas.nota && <Text style={styles.nota}>{posturas.nota}</Text>}
@@ -392,18 +416,18 @@ const styles = StyleSheet.create({
   contadorPaso: { color: '#6b7280', fontWeight: '700' },
   tituloPaso: { fontSize: 22, fontWeight: '800', color: '#111827' },
   datosTarea: { fontSize: 13, color: '#4b5563', marginTop: 4 },
-  reloj: { backgroundColor: '#fff', borderWidth: 3, borderRadius: 18, padding: 14, alignItems: 'center', marginVertical: 12 },
+  reloj: { backgroundColor: '#fff', borderWidth: 2, borderRadius: 14, padding: 10, alignItems: 'center', marginVertical: 10 },
   relojFase: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  relojTiempo: { fontSize: 64, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  relojTiempo: { fontSize: 38, fontWeight: '800', fontVariant: ['tabular-nums'] },
   relojSub: { fontSize: 12, color: '#6b7280', marginTop: 4 },
-  puntos: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginVertical: 10 },
-  punto: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  puntos: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginVertical: 6 },
+  punto: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   puntoHecho: { backgroundColor: '#16a34a', borderColor: '#16a34a' },
   puntoActual: { borderColor: '#16a34a' },
   puntoTexto: { fontWeight: '800', color: '#374151' },
   controles: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' },
-  botonReloj: { borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20 },
-  botonRelojTexto: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  botonReloj: { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16 },
+  botonRelojTexto: { color: '#fff', fontWeight: '800', fontSize: 14 },
   botonMini: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 14 },
   botonMiniTexto: { fontWeight: '700', color: '#374151' },
   descripcion: { fontSize: 14, color: '#374151', marginTop: 8, lineHeight: 20 },

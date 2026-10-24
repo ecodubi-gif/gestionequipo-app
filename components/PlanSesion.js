@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from 'react-native';
-import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, posturasEstiramiento, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from '../data/planSesion';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, posturasEstiramiento, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo } from '../data/planSesion';
 import { confirmar } from '../data/confirmar';
 import BibliotecaTareas from './BibliotecaTareas';
+import ProgramaEditable from './ProgramaEditable';
+import { programaDe, CLAVE_PROG } from '../data/programaSesion';
 import { CAMPOS_PERFIL } from '../data/semana';
 import { OBJETIVOS, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from '../data/tareas';
 
@@ -18,6 +20,12 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
   const plantilla = plantillas.find((p) => p.numero === tipo);
   const bloques = entrenamiento.bloques || {};
   const puedeApagar = puedePF || puedeEntrenador; // apagar preventivo o movilidad solo en esta sesión
+  const programa = programaDe(entrenamiento, plantilla);
+  const guardarProg = (tipoProg) => (lista) => onGuardarBloques({ [CLAVE_PROG[tipoProg]]: lista });
+  const guardarProgPlantilla = (tipoProg) => async (lista) => {
+    if (lista.length === 0) throw new Error('La sugerencia necesita al menos un elemento.');
+    await onGuardarPlantilla(tipo, { [tipoProg]: lista });
+  };
   const preventivoOff = bloques.preventivo_activa === false;
   const movilidadOff = bloques.movilidad_activa === false;
 
@@ -61,37 +69,6 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
   };
 
   const cambiarValor = (campo, texto) => setEdicion((e) => ({ ...e, valores: { ...e.valores, [campo]: texto } }));
-
-  const abrirEstacion = (indice) => {
-    const e = plantilla.preventivo[indice];
-    setEdicion({
-      tipo: 'estacion', indice,
-      titulo: `Estación ${indice + 1}`,
-      nota: `Se aplica a todos los Entreno ${tipo}.`,
-      campos: [
-        { clave: 'zona', etiqueta: 'Zona de trabajo', obligatorio: true },
-        { clave: 'ejercicio', etiqueta: 'Ejercicio', multilinea: true, obligatorio: true },
-        { clave: 'series', etiqueta: 'Series' },
-        { clave: 'detalle', etiqueta: 'Repeticiones o tiempo' },
-      ],
-      valores: { zona: e.zona || '', ejercicio: e.ejercicio || '', series: e.series || '', detalle: e.detalle || '' },
-    });
-  };
-
-  const abrirTramo = (indice) => {
-    const m = plantilla.movilidad[indice];
-    setEdicion({
-      tipo: 'tramo', indice,
-      titulo: `Movilidad ${m.tiempo}`,
-      nota: `Se aplica a todos los Entreno ${tipo}.`,
-      campos: [
-        { clave: 'tiempo', etiqueta: 'Tiempo', obligatorio: true },
-        { clave: 'zona', etiqueta: 'Zona de trabajo', obligatorio: true },
-        { clave: 'descripcion', etiqueta: 'Ejercicio', multilinea: true, obligatorio: true },
-      ],
-      valores: { tiempo: m.tiempo || '', zona: m.zona || '', descripcion: m.descripcion || '' },
-    });
-  };
 
   const semana = plantilla ? plantilla.semana : null;
   const abrirPerfil = () => {
@@ -171,13 +148,7 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
     setGuardando(true);
     try {
       const v = Object.fromEntries(Object.entries(edicion.valores).map(([k, x]) => [k, x.trim()]));
-      if (edicion.tipo === 'estacion') {
-        const nuevo = plantilla.preventivo.map((e, i) => (i === edicion.indice ? { ...e, ...v } : e));
-        await onGuardarPlantilla(tipo, { preventivo: nuevo });
-      } else if (edicion.tipo === 'tramo') {
-        const nuevo = plantilla.movilidad.map((m, i) => (i === edicion.indice ? { ...m, ...v } : m));
-        await onGuardarPlantilla(tipo, { movilidad: nuevo });
-      } else if (edicion.tipo === 'posta') {
+      if (edicion.tipo === 'posta') {
         const nuevas = postas.map((x, i) => (i === edicion.indice ? { ...x, ...v } : x));
         await onGuardarSemana(tipo, { ...(semana || {}), tareas: (semana && semana.tareas) || [], postas: nuevas });
       } else if (edicion.tipo === 'perfil') {
@@ -257,10 +228,9 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
         </TouchableOpacity>
       )}
 
-      {!plantilla ? (
-        <Text style={styles.vacio}>Todavía no hay programa de preparación física para el Entreno {tipo}.</Text>
-      ) : (
+      {(
         <>
+          {!plantilla && <Text style={styles.vacio}>Todavía no hay programa de preparación física para el Entreno {tipo}. Puedes añadir ejercicios solo para esta sesión.</Text>}
           <View style={styles.cabeceraBloque}>
             <Text style={[styles.subtitulo, { flex: 1, marginTop: 0, marginBottom: 0 }]}>1. Trabajo preventivo neuromuscular · 15' (4 estaciones en circuito, 3' cada una)</Text>
             {puedeApagar && (
@@ -270,16 +240,13 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
             )}
           </View>
           {preventivoOff && <Text style={styles.vacio}>Desactivado en esta sesión: no se hace preventivo.</Text>}
-          {!preventivoOff && plantilla.preventivo.map((e, i) => (
-            <TouchableOpacity key={i} style={styles.estacion} disabled={!puedePF} onPress={() => abrirEstacion(i)} activeOpacity={0.7}>
-              <View style={styles.numero}><Text style={styles.numeroTexto}>{i + 1}</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.zona}>{e.zona}</Text>
-                <Text style={styles.ejercicio}>{e.ejercicio}</Text>
-                {textoSeries(e) !== '' && <Text style={styles.series}>{textoSeries(e)}</Text>}
-              </View>
-            </TouchableOpacity>
-          ))}
+          {!preventivoOff && (
+            <ProgramaEditable
+              tipo="preventivo" lista={programa.preventivo} propio={programa.propioPrev} puedeEditar={puedeApagar}
+              puedePlantilla={puedePF && !!plantilla} numeroEntreno={tipo}
+              onGuardarSesion={guardarProg('preventivo')} onGuardarPlantilla={guardarProgPlantilla('preventivo')}
+            />
+          )}
 
           <View style={styles.cabeceraBloque}>
             <Text style={[styles.subtitulo, { flex: 1, marginTop: 0, marginBottom: 0 }]}>2. Movilidad dinámica integrada · 5' (2 filas a 10 metros)</Text>
@@ -290,17 +257,15 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
             )}
           </View>
           {movilidadOff && <Text style={styles.vacio}>Desactivada en esta sesión.</Text>}
-          {!movilidadOff && plantilla.movilidad.map((m, i) => (
-            <TouchableOpacity key={i} style={styles.tramo} disabled={!puedePF} onPress={() => abrirTramo(i)} activeOpacity={0.7}>
-              <View style={styles.tiempo}><Text style={styles.tiempoTexto}>{m.tiempo}</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.zona}>{m.zona}</Text>
-                <Text style={styles.ejercicio}>{m.descripcion}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {!movilidadOff && (
+            <ProgramaEditable
+              tipo="movilidad" lista={programa.movilidad} propio={programa.propioMov} puedeEditar={puedeApagar}
+              puedePlantilla={puedePF && !!plantilla} numeroEntreno={tipo}
+              onGuardarSesion={guardarProg('movilidad')} onGuardarPlantilla={guardarProgPlantilla('movilidad')}
+            />
+          )}
           <Text style={styles.pie}>
-            {puedePF ? `Toca una estación o un tramo para cambiarlo. Se aplica a todos los Entreno ${tipo}.` : 'Lo gestiona el preparador físico.'}
+            {puedeApagar ? `Toca un ejercicio para cambiarlo, o usa ▲ ▼ 🗑 y ＋. Los cambios valen solo para esta sesión${puedePF ? `; al editar puedes guardarlos para todos los Entreno ${tipo}` : ''}.` : 'Lo gestiona el preparador físico.'}
           </Text>
         </>
       )}
