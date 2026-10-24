@@ -1,6 +1,7 @@
 import { Platform, Alert, Linking, Share } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { nombreArchivo } from './nombreArchivo';
 
 /**
  * Abre WhatsApp con un texto ya escrito.
@@ -29,34 +30,77 @@ export async function compartirWhatsApp(texto) {
   }
 }
 
+// En el navegador: convierte el HTML en un PDF de verdad (varias páginas A4) y lo comparte con el menú del móvil
+// o, si no existe, lo descarga. Devuelve false si no ha podido, para caer en el diálogo de impresión.
+async function pdfEnNavegador(html, nombre, horizontal = false) {
+  let iframe = null;
+  try {
+    iframe = document.createElement('iframe');
+    iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${horizontal ? 1123 : 794}px;height:${horizontal ? 794 : 1123}px;border:0;`;
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    await new Promise((r) => setTimeout(r, 600)); // que termine de pintar (SVG, tipos de letra)
+    const html2pdf = (await import('html2pdf.js')).default;
+    const blob = await html2pdf().set({
+      margin: [8, 8, 8, 8],
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, windowWidth: horizontal ? 1123 : 794 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: horizontal ? 'landscape' : 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['.bloque', '.tarea'] },
+    }).from(doc.body).outputPdf('blob');
+    const archivo = new File([blob], `${nombre}.pdf`, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      try {
+        await navigator.share({ files: [archivo], title: nombre });
+        return true;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return true; // el usuario cerró el menú de compartir
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${nombre}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return true;
+  } catch (e) {
+    return false;
+  } finally {
+    if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+  }
+}
+
 /**
  * Genera un documento (PDF) a partir de HTML y lo comparte.
- * En móvil usamos expo-print + expo-sharing, que crean un PDF de
- * verdad y abren el menú de compartir del sistema. En el navegador,
- * expo-print no genera un archivo real — en vez de eso abrimos una
- * ventana nueva solo con el documento (sin el resto de la app) y
- * lanzamos el diálogo de impresión del propio navegador, donde se
- * puede elegir "Guardar como PDF".
+ * En móvil usamos expo-print + expo-sharing, que crean un PDF de verdad y abren el menú de compartir del sistema.
+ * En el navegador generamos el PDF y lo compartimos con el menú del dispositivo (WhatsApp, correo…) o lo descargamos.
+ * Solo si eso falla abrimos el diálogo de impresión del navegador, donde se puede elegir "Guardar como PDF".
  */
-export async function generarDocumento(html, nombreError = 'el documento') {
+export async function generarDocumento(html, nombreError = 'el documento', opciones = {}) {
   if (Platform.OS === 'web') {
+    if (await pdfEnNavegador(html, nombreArchivo(nombreError), Boolean(opciones.horizontal))) return;
     const ventana = window.open('', '_blank');
     if (!ventana) {
       Alert.alert(
-        'No se pudo abrir la ventana',
-        'El navegador ha bloqueado la ventana emergente. Permítela para este sitio y vuelve a intentarlo.'
+        'No se pudo generar el PDF',
+        'Prueba de nuevo. Si sigue fallando, permite las ventanas emergentes para este sitio.'
       );
       return;
     }
     ventana.document.write(html);
     ventana.document.close();
-    // Esperamos un poco a que la ventana termine de pintar antes de imprimir.
     setTimeout(() => ventana.print(), 400);
     return;
   }
 
   try {
-    const { uri } = await Print.printToFileAsync({ html });
+    const { uri } = await Print.printToFileAsync({ html, ...(opciones.horizontal ? { width: 842, height: 595 } : {}) });
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(uri);
     } else {

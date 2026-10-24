@@ -196,11 +196,11 @@ export default function AlineacionScreen({ route }) {
         {sucio && puedeEditar && <Text style={styles.aviso}>⚠️ Hay cambios sin guardar</Text>}
         <View style={styles.fila}>
           {puedeEditar && <TouchableOpacity style={[styles.botonVerde, !sucio && { opacity: 0.5 }]} onPress={guardar} disabled={guardando || !sucio}><Text style={styles.botonVerdeTexto}>{guardando ? 'Guardando…' : 'Guardar'}</Text></TouchableOpacity>}
-          <TouchableOpacity style={styles.botonGris} onPress={() => imprimir(false)}><Text style={styles.botonGrisTexto}>🖨️ Imprimir este</Text></TouchableOpacity>
-          {momentos.length > 1 && <TouchableOpacity style={styles.botonGris} onPress={() => imprimir(true)}><Text style={styles.botonGrisTexto}>🖨️ Imprimir todos</Text></TouchableOpacity>}
+          <TouchableOpacity style={styles.botonGris} onPress={() => imprimir(false)}><Text style={styles.botonGrisTexto}>📄 PDF de este</Text></TouchableOpacity>
+          {momentos.length > 1 && <TouchableOpacity style={styles.botonGris} onPress={() => imprimir(true)}><Text style={styles.botonGrisTexto}>📄 PDF de todos</Text></TouchableOpacity>}
           {puedeEditar && momentos.length > 1 && <TouchableOpacity style={styles.botonRojo} onPress={borrarMomento}><Text style={styles.botonRojoTexto}>Borrar momento</Text></TouchableOpacity>}
         </View>
-        {sucio && <Text style={styles.ayuda}>Imprimir usa lo que ves ahora, aunque aún no lo hayas guardado.</Text>}
+        {sucio && <Text style={styles.ayuda}>El PDF usa lo que ves ahora, aunque aún no lo hayas guardado.</Text>}
       </View>
     </ScrollView>
   );

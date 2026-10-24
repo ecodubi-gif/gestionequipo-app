@@ -164,7 +164,7 @@ export default function AbpScreen({ route }) {
 
   const datosImpresion = () => Object.fromEntries(convocados.map((j) => [j.id, { dorsal: j.dorsal, nombre: corto(j) }]));
   const cabecera = { equipo: partido?.equipo_local || '', rival: partido?.equipo_visitante || '' };
-  const imprimir = (lista) => generarDocumento(lista.map((j, i) => htmlJugada(j, asigDe(j), datosImpresion(), cabecera, i > 0)).join(''), 'el balón parado');
+  const imprimir = (lista) => generarDocumento(lista.map((j, i) => htmlJugada(j, asigDe(j), datosImpresion(), cabecera, i > 0)).join(''), 'el balón parado', { horizontal: true });
 
   if (cargando) return <ActivityIndicator style={{ marginTop: 40 }} />;
 
@@ -173,7 +173,7 @@ export default function AbpScreen({ route }) {
       <ScrollView style={styles.contenedor} contentContainerStyle={{ padding: 16, paddingBottom: 80, alignItems: 'center' }}>
         <View style={{ width: ancho }}>
           <TouchableOpacity onPress={() => setVerTodas(false)}><Text style={styles.volver}>‹ Volver a la lista</Text></TouchableOpacity>
-          <TouchableOpacity style={[styles.botonNegro, { alignSelf: 'stretch', marginBottom: 12 }]} onPress={() => imprimir(jugadas)}><Text style={styles.botonTexto}>🖨️ Imprimir todas ({jugadas.length})</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.botonNegro, { alignSelf: 'stretch', marginBottom: 12 }]} onPress={() => imprimir(jugadas)}><Text style={styles.botonTexto}>📄 PDF de todas ({jugadas.length})</Text></TouchableOpacity>
         </View>
         {jugadas.map((j) => (
           <View key={j.id} style={{ width: ancho, marginBottom: 18 }}>
@@ -219,7 +219,7 @@ export default function AbpScreen({ route }) {
         )}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
           {jugadas.length > 0 && <TouchableOpacity style={styles.botonVerde} onPress={() => setVerTodas(true)}><Text style={styles.botonTexto}>👁 Ver todas juntas</Text></TouchableOpacity>}
-          {jugadas.length > 0 && <TouchableOpacity style={styles.botonNegro} onPress={() => imprimir(jugadas)}><Text style={styles.botonTexto}>🖨️ Imprimir todas</Text></TouchableOpacity>}
+          {jugadas.length > 0 && <TouchableOpacity style={styles.botonNegro} onPress={() => imprimir(jugadas)}><Text style={styles.botonTexto}>📄 PDF de todas</Text></TouchableOpacity>}
           {puedeEditar && jugadas.length > 0 && <TouchableOpacity style={styles.botonGris} onPress={abrirCopiar} disabled={copiando}><Text style={styles.botonGrisTexto}>{copiando ? 'Copiando…' : '⎘ Copiar de otro partido'}</Text></TouchableOpacity>}
           {puedeEditar && <TouchableOpacity style={styles.botonVerde} onPress={() => { abrir(nuevaJugada()); setModo('editar'); setSucio(true); }}><Text style={styles.botonTexto}>＋ Nueva jugada</Text></TouchableOpacity>}
         </View>
@@ -358,7 +358,7 @@ export default function AbpScreen({ route }) {
           </>
         )}
         {!!error && <Text style={styles.error}>{error}</Text>}
-        <TouchableOpacity style={[styles.botonNegro, { alignSelf: 'stretch', marginTop: 10 }]} onPress={() => imprimir([abierta])}><Text style={styles.botonTexto}>🖨️ Imprimir esta jugada</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.botonNegro, { alignSelf: 'stretch', marginTop: 10 }]} onPress={() => imprimir([abierta])}><Text style={styles.botonTexto}>📄 PDF de esta jugada</Text></TouchableOpacity>
       </View>
     </ScrollView>
   );

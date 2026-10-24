@@ -138,7 +138,7 @@ export default function SesionCompletaScreen({ route }) {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 16, paddingBottom: 40 }}>
         <TouchableOpacity style={styles.botonImprimir} onPress={imprimir} activeOpacity={0.85}>
-          <Text style={styles.botonImprimirTexto}>🖨️  Imprimir o guardar en PDF</Text>
+          <Text style={styles.botonImprimirTexto}>📄  Generar PDF y compartir</Text>
         </TouchableOpacity>
 
         {!tareasDisponibles && <Text style={styles.aviso}>Las tareas no están disponibles ahora mismo: se muestra la sesión sin ellas.</Text>}
