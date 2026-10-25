@@ -23,7 +23,7 @@ export function pasosDeSesion(sesion) {
         });
       });
       // Si el bloque tiene un texto además de las tareas (p. ej. la rueda), también se puede seguir.
-      if (it.texto && !bloqueConTareas) pasos.push(pasoDeBloque(it, `${it.clave}-texto`));
+      if ((it.texto || (it.postas && it.postas.length > 0)) && !bloqueConTareas) pasos.push(pasoDeBloque(it, `${it.clave}-texto`));
     } else if (bloqueConTareas) {
       // Parte central o cierre sin tareas: no hay nada que seguir.
       continue;

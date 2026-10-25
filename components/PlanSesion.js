@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from 'react-native';
-import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, posturasEstiramiento, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo } from '../data/planSesion';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, posturasEstiramiento, TIPOS_SESION, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo } from '../data/planSesion';
 import { confirmar } from '../data/confirmar';
 import BibliotecaTareas from './BibliotecaTareas';
 import ProgramaEditable from './ProgramaEditable';
-import { programaDe, CLAVE_PROG } from '../data/programaSesion';
+import { programaDe, tiemposRueda, minutosRueda, CLAVE_PROG } from '../data/programaSesion';
 import { CAMPOS_PERFIL } from '../data/semana';
 import { OBJETIVOS, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from '../data/tareas';
 
@@ -24,7 +24,8 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
   const guardarProg = (tipoProg) => (lista) => onGuardarBloques({ [CLAVE_PROG[tipoProg]]: lista });
   const guardarProgPlantilla = (tipoProg) => async (lista) => {
     if (lista.length === 0) throw new Error('La sugerencia necesita al menos un elemento.');
-    await onGuardarPlantilla(tipo, { [tipoProg]: lista });
+    if (tipoProg === 'rueda') await onGuardarSemana(tipo, { ...(semana || {}), tareas: (semana && semana.tareas) || [], postas: lista });
+    else await onGuardarPlantilla(tipo, { [tipoProg]: lista });
   };
   const preventivoOff = bloques.preventivo_activa === false;
   const movilidadOff = bloques.movilidad_activa === false;
@@ -81,22 +82,6 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
     });
   };
 
-  const postas = postasDe(plantilla);
-  const abrirPosta = (indice) => {
-    const x = postas[indice];
-    setEdicion({
-      tipo: 'posta', indice,
-      titulo: `Posta ${indice + 1}`,
-      nota: `Se aplica a todos los Entreno ${tipo}.`,
-      campos: [
-        { clave: 'titulo', etiqueta: 'Nombre de la posta', obligatorio: true },
-        { clave: 'fisico', etiqueta: 'Trabajo físico (material)', multilinea: true, obligatorio: true },
-        { clave: 'tecnico', etiqueta: 'Recurso técnico-táctico (con balón)', multilinea: true },
-      ],
-      valores: { titulo: x.titulo || '', fisico: x.fisico || '', tecnico: x.tecnico || '' },
-    });
-  };
-
   const cargarPlantilla = () => {
     const n = (semana?.tareas || []).length;
     const hay = (tareas || []).length;
@@ -148,10 +133,7 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
     setGuardando(true);
     try {
       const v = Object.fromEntries(Object.entries(edicion.valores).map(([k, x]) => [k, x.trim()]));
-      if (edicion.tipo === 'posta') {
-        const nuevas = postas.map((x, i) => (i === edicion.indice ? { ...x, ...v } : x));
-        await onGuardarSemana(tipo, { ...(semana || {}), tareas: (semana && semana.tareas) || [], postas: nuevas });
-      } else if (edicion.tipo === 'perfil') {
+      if (edicion.tipo === 'perfil') {
         await onGuardarSemana(tipo, { ...(semana || {}), tareas: (semana && semana.tareas) || [], ...v });
       } else {
         await onGuardarBloques({ [edicion.clave]: v.contenido || null });
@@ -302,7 +284,7 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
             activeOpacity={0.7}
           >
             <View style={{ flex: 1 }}>
-              <Text style={styles.zona}>{b.titulo}{b.duracion ? ` · ${b.duracion}'` : ''}</Text>
+              <Text style={styles.zona}>{b.titulo}{b.clave === 'rueda_perfiles' ? ` · ${minutosRueda(programa.rueda.length, tiemposRueda(entrenamiento).posta, tiemposRueda(entrenamiento).rotacion)}'` : b.duracion ? ` · ${b.duracion}'` : ''}</Text>
               <Text style={styles.ejercicio} numberOfLines={3}>
                 {apagado ? 'Desactivada en esta sesión' : bloques[b.clave] || (puedeEntrenador ? 'Toca para rellenar' : 'Sin rellenar todavía')}
               </Text>
@@ -316,23 +298,13 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
 
           {b.clave === 'rueda_perfiles' && !apagado && (
             <View style={styles.tareasBloque}>
-              {postas.length === 0 ? (
-                <Text style={styles.grupoNota}>Sin postas escritas para el Entreno {tipo}.</Text>
-              ) : (
-                <>
-                  <Text style={styles.grupoNota}>{postas.length} postas de 3' con rotación de 1'{puedeTipo ? '. Toca una para cambiarla (se aplica a todos los Entreno ' + tipo + ').' : '.'}</Text>
-                  {postas.map((x, i) => (
-                    <TouchableOpacity key={i} style={styles.estacion} disabled={!puedeTipo} onPress={() => abrirPosta(i)} activeOpacity={0.7}>
-                      <View style={styles.numero}><Text style={styles.numeroTexto}>{i + 1}</Text></View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.zona}>{x.titulo}</Text>
-                        <Text style={styles.ejercicio}><Text style={styles.perfilEtiqueta}>Físico: </Text>{x.fisico}</Text>
-                        {!!x.tecnico && <Text style={styles.ejercicio}><Text style={styles.perfilEtiqueta}>Técnico: </Text>{x.tecnico}</Text>}
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
+              <ProgramaEditable
+                tipo="rueda" lista={programa.rueda} propio={programa.propioRueda} puedeEditar={puedeEntrenador}
+                puedePlantilla={puedeTipo && !!semana} numeroEntreno={tipo}
+                tiempos={tiemposRueda(entrenamiento)} onCambiarTiempos={(c) => onGuardarBloques(c)}
+                onGuardarSesion={guardarProg('rueda')} onGuardarPlantilla={guardarProgPlantilla('rueda')}
+              />
+              <Text style={styles.grupoNota}>El tiempo de la rueda depende de las postas: cada posta dura lo que pongas y entre postas hay rotación.</Text>
             </View>
           )}
 

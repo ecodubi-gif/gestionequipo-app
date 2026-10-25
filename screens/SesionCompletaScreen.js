@@ -194,7 +194,7 @@ export default function SesionCompletaScreen({ route }) {
               {it.sinPrograma && <Text style={styles.vacio}>Sin programa de preparación física para este tipo de entreno.</Text>}
               {!!it.postas && it.postas.length > 0 && (
                 <>
-                  <Text style={styles.vacio}>{it.postas.length} postas de 3' con rotación de 1'.</Text>
+                  <Text style={styles.vacio}>{it.postas.length} postas de {it.postaMin}' con rotación de {it.rotacionMin}'.</Text>
                   {it.postas.map((x, i) => (
                     <Text key={i} style={styles.linea}>
                       <Text style={styles.negrita}>{i + 1}. {x.titulo}.</Text> Físico: {x.fisico}{x.tecnico ? ` Técnico: ${x.tecnico}` : ''}

@@ -2,18 +2,22 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from 'react-native';
 import { confirmar } from '../data/confirmar';
 import { textoSeries } from '../data/planSesion';
-import { CAMPOS_PROG, MAX_ITEMS, itemVacio, limpiarPrograma, reemplazar, quitar, anadir, mover } from '../data/programaSesion';
+import { CAMPOS_PROG, MAX_ITEMS, LIMITES_RUEDA, minutosRueda, itemVacio, limpiarPrograma, reemplazar, quitar, anadir, mover } from '../data/programaSesion';
+
+const ASPECTO = {
+  preventivo: { color: '#7c3aed', borde: '#ddd6fe', palabra: 'ejercicio', plural: 'ejercicios', titulo: 'Ejercicio' },
+  movilidad: { color: '#2563eb', borde: '#bfdbfe', palabra: 'tramo', plural: 'tramos', titulo: 'Tramo' },
+  rueda: { color: '#ea580c', borde: '#fed7aa', palabra: 'posta', plural: 'postas', titulo: 'Posta' },
+};
 
 // Preventivo o movilidad de una sesión: la sugerencia de la plantilla se puede cambiar solo para esta sesión
 // (cambiar un ejercicio, quitar, poner otro, reordenar) o volver a ella. El preparador físico además puede
 // guardar el cambio como nueva sugerencia de todos los entrenos de ese tipo.
-export default function ProgramaEditable({ tipo, lista, propio, puedeEditar, puedePlantilla, numeroEntreno, onGuardarSesion, onGuardarPlantilla }) {
+export default function ProgramaEditable({ tipo, lista, propio, puedeEditar, puedePlantilla, numeroEntreno, onGuardarSesion, onGuardarPlantilla, tiempos, onCambiarTiempos }) {
   const [edicion, setEdicion] = useState(null); // { indice (-1 = nuevo), valores }
   const [guardando, setGuardando] = useState(false);
   const campos = CAMPOS_PROG[tipo];
-  const color = tipo === 'preventivo' ? '#7c3aed' : '#2563eb';
-  const borde = tipo === 'preventivo' ? '#ddd6fe' : '#bfdbfe';
-  const palabra = tipo === 'preventivo' ? 'ejercicio' : 'tramo';
+  const { color, borde, palabra, plural, titulo: tituloItem } = ASPECTO[tipo];
 
   const cerrar = () => { Keyboard.dismiss(); setEdicion(null); };
   const completo = edicion ? campos.every((c) => !c.obligatorio || (edicion.valores[c.clave] || '').trim().length > 0) : false;
@@ -38,15 +42,35 @@ export default function ProgramaEditable({ tipo, lista, propio, puedeEditar, pue
 
   return (
     <View>
+      {tipo === 'rueda' && tiempos && (
+        <View style={styles.tiempos}>
+          {[['posta', 'Tiempo por posta', LIMITES_RUEDA.postaMin, LIMITES_RUEDA.postaMax, 'rueda_posta_min'], ['rotacion', 'Rotación entre postas', LIMITES_RUEDA.rotMin, LIMITES_RUEDA.rotMax, 'rueda_rot_min']].map(([k, etiqueta, min, max, clave]) => (
+            <View key={k} style={styles.tiempoFila}>
+              <Text style={styles.tiempoEtiqueta}>{etiqueta}</Text>
+              <TouchableOpacity style={[styles.mas, (!puedeEditar || tiempos[k] <= min) && { opacity: 0.3 }]} disabled={!puedeEditar || tiempos[k] <= min || guardando} onPress={() => ejecutar(() => onCambiarTiempos({ [clave]: tiempos[k] - 1 }))} testID={`rueda-${k}-menos`}><Text style={styles.masTexto}>−</Text></TouchableOpacity>
+              <Text style={styles.tiempoValor}>{tiempos[k]}'</Text>
+              <TouchableOpacity style={[styles.mas, (!puedeEditar || tiempos[k] >= max) && { opacity: 0.3 }]} disabled={!puedeEditar || tiempos[k] >= max || guardando} onPress={() => ejecutar(() => onCambiarTiempos({ [clave]: tiempos[k] + 1 }))} testID={`rueda-${k}-mas`}><Text style={styles.masTexto}>+</Text></TouchableOpacity>
+            </View>
+          ))}
+          <Text style={styles.tiempoTotal} testID="rueda-total">
+            {lista.length > 0 ? `${lista.length} ${lista.length === 1 ? 'posta' : 'postas'} → la rueda dura ${minutosRueda(lista.length, tiempos.posta, tiempos.rotacion)}'` : "Sin postas: la rueda dura 15'"}
+          </Text>
+        </View>
+      )}
       {propio && <Text style={styles.propio}>✏️ Cambiado solo para esta sesión</Text>}
-      {lista.length === 0 && <Text style={styles.vacio}>No hay {tipo === 'preventivo' ? 'ejercicios' : 'tramos'} en esta sesión.</Text>}
+      {lista.length === 0 && <Text style={styles.vacio}>No hay {plural} en esta sesión.</Text>}
       {lista.map((it, i) => (
         <View key={i} style={[styles.fila, { borderColor: borde }]}>
           <TouchableOpacity style={styles.cuerpo} disabled={!puedeEditar} onPress={() => setEdicion({ indice: i, valores: { ...itemVacio(tipo), ...it } })} activeOpacity={0.7}>
-            <View style={[styles.marca, { backgroundColor: color }]}><Text style={styles.marcaTexto}>{tipo === 'preventivo' ? i + 1 : it.tiempo}</Text></View>
+            <View style={[styles.marca, { backgroundColor: color }]}><Text style={styles.marcaTexto}>{tipo === 'movilidad' ? it.tiempo : i + 1}</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.zona}>{it.zona}</Text>
-              <Text style={styles.ejercicio}>{tipo === 'preventivo' ? it.ejercicio : it.descripcion}</Text>
+              <Text style={styles.zona}>{tipo === 'rueda' ? it.titulo : it.zona}</Text>
+              {tipo === 'rueda' ? (
+                <>
+                  <Text style={styles.ejercicio}><Text style={styles.series}>Físico: </Text>{it.fisico}</Text>
+                  {!!it.tecnico && <Text style={styles.ejercicio}><Text style={styles.series}>Técnico: </Text>{it.tecnico}</Text>}
+                </>
+              ) : <Text style={styles.ejercicio}>{tipo === 'preventivo' ? it.ejercicio : it.descripcion}</Text>}
               {tipo === 'preventivo' && textoSeries(it) !== '' && <Text style={styles.series}>{textoSeries(it)}</Text>}
             </View>
           </TouchableOpacity>
@@ -82,7 +106,7 @@ export default function ProgramaEditable({ tipo, lista, propio, puedeEditar, pue
               <>
                 <View style={styles.cabeceraModal}>
                   <TouchableOpacity onPress={cerrar}><Text style={styles.cancelar}>Cancelar</Text></TouchableOpacity>
-                  <Text style={styles.tituloModal} numberOfLines={1}>{edicion.indice < 0 ? `Nuevo ${palabra}` : `${tipo === 'preventivo' ? 'Ejercicio' : 'Tramo'} ${edicion.indice + 1}`}</Text>
+                  <Text style={styles.tituloModal} numberOfLines={1}>{edicion.indice < 0 ? `Nuevo ${palabra}` : `${tituloItem} ${edicion.indice + 1}`}</Text>
                   <TouchableOpacity onPress={guardarSesion} disabled={!completo || guardando} testID="programa-guardar">
                     {guardando ? <ActivityIndicator color="#16a34a" /> : <Text style={[styles.guardar, !completo && { color: '#9ca3af' }]}>Guardar</Text>}
                   </TouchableOpacity>
@@ -116,6 +140,13 @@ export default function ProgramaEditable({ tipo, lista, propio, puedeEditar, pue
 }
 
 const styles = StyleSheet.create({
+  tiempos: { backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa', borderRadius: 12, padding: 10, marginBottom: 8 },
+  tiempoFila: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  tiempoEtiqueta: { flex: 1, fontSize: 13, fontWeight: '700', color: '#7c2d12' },
+  tiempoValor: { minWidth: 38, textAlign: 'center', fontSize: 16, fontWeight: '800', color: '#111827' },
+  mas: { width: 36, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#fdba74', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  masTexto: { fontSize: 18, fontWeight: '800', color: '#c2410c', lineHeight: 20 },
+  tiempoTotal: { fontSize: 12, fontWeight: '700', color: '#9a3412' },
   propio: { fontSize: 12, fontWeight: '700', color: '#b45309', backgroundColor: '#fef3c7', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'flex-start', marginBottom: 8 },
   vacio: { fontSize: 12, color: '#6b7280', backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', padding: 14, marginBottom: 8 },
   fila: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff', borderRadius: 12, borderWidth: 1.5, padding: 10, marginBottom: 8 },

@@ -1,4 +1,5 @@
-import { programaDe, limpiarPrograma, reemplazar, quitar, anadir, mover, itemVacio, MAX_ITEMS, programaPropio } from './programaSesion.mjs';
+import { programaDe, limpiarPrograma, reemplazar, quitar, anadir, mover, itemVacio, MAX_ITEMS, programaPropio, tiemposRueda, minutosRueda } from './programaSesion.mjs';
+import { construirSesion } from './sesion.mjs';
 let ok = 0, mal = 0;
 const t = (n, c) => { if (c) ok++; else { mal++; console.log('MAL:', n); } };
 const plantilla = { preventivo: [{ zona: 'Pie', ejercicio: 'Equilibrio', series: '3', detalle: '20s' }, { zona: 'Core', ejercicio: 'Plancha' }], movilidad: [{ tiempo: "0-1'", zona: 'Cadera', descripcion: 'Zancada' }] };
@@ -18,4 +19,28 @@ t('reemplazar', reemplazar('preventivo', lista, 1, { ejercicio: 'Puente' })[1].e
 t('quitar', quitar(lista, 0).length === 1 && quitar(lista, 0)[0].zona === 'Core');
 t('añadir', anadir('preventivo', lista, { zona: 'Nueva', ejercicio: 'Ej' }).length === 3 && anadir('preventivo', lista, itemVacio('preventivo')).length === 2);
 t('mover', mover(lista, 0, 1)[0].zona === 'Core' && mover(lista, 0, -1) === lista);
+// --- rueda físico-técnica: el tiempo depende de las postas
+const postas = [1, 2, 3, 4].map((n) => ({ titulo: 'P' + n, fisico: 'F' + n, tecnico: 'T' + n }));
+const pl = { ...plantilla, semana: { postas } };
+t('rueda 4 postas 3+1 = 15', minutosRueda(4, 3, 1) === 15);
+t('rueda 3 postas 3+1 = 11', minutosRueda(3, 3, 1) === 11);
+t('rueda 4 postas 2+1 = 11', minutosRueda(4, 2, 1) === 11);
+t('rueda 6 postas 4+0 = 24', minutosRueda(6, 4, 0) === 24);
+t('rueda sin postas = 15 de siempre', minutosRueda(0, 3, 1) === 15);
+t('tiempos por defecto', JSON.stringify(tiemposRueda({ bloques: {} })) === JSON.stringify({ posta: 3, rotacion: 1 }));
+t('tiempos guardados', JSON.stringify(tiemposRueda({ bloques: { rueda_posta_min: 5, rueda_rot_min: 0 } })) === JSON.stringify({ posta: 5, rotacion: 0 }));
+t('tiempos fuera de rango se recortan', tiemposRueda({ bloques: { rueda_posta_min: 99, rueda_rot_min: -4 } }).posta === 10 && tiemposRueda({ bloques: { rueda_posta_min: 99, rueda_rot_min: -4 } }).rotacion === 0);
+t('tiempos basura = defecto', tiemposRueda({ bloques: { rueda_posta_min: 'x', rueda_rot_min: null } }).posta === 3);
+t('postas de la plantilla', programaDe({ bloques: {} }, pl).rueda.length === 4 && !programaDe({ bloques: {} }, pl).propioRueda);
+t('postas propias de la sesión', programaDe({ bloques: { rueda_prog: postas.slice(0, 3) } }, pl).rueda.length === 3 && programaDe({ bloques: { rueda_prog: postas.slice(0, 3) } }, pl).propioRueda);
+t('limpiar rueda', limpiarPrograma('rueda', [{ titulo: ' A ', fisico: 'B' }, { titulo: '', fisico: 'x' }]).length === 1);
+t('rueda máximo 6', anadir('rueda', Array.from({ length: 6 }, () => postas[0]), postas[1]).length === 6);
+const ruedaMin = (ent) => construirSesion({ entrenamiento: ent, plantilla: pl, tareas: [], tipo: 2 }).items.find((i) => i.clave === 'rueda_perfiles');
+t('sesión: rueda 15 por defecto', ruedaMin({ bloques: {} }).minutos === 15);
+t('sesión: 3 postas propias = 11', ruedaMin({ bloques: { rueda_prog: postas.slice(0, 3) } }).minutos === 11);
+t('sesión: 4 postas de 2 y rotación 1 = 11', ruedaMin({ bloques: { rueda_posta_min: 2 } }).minutos === 11);
+t('sesión: postas de 4 sin rotación = 16', ruedaMin({ bloques: { rueda_posta_min: 4, rueda_rot_min: 0 } }).minutos === 16);
+t('sesión: lleva los tiempos', ruedaMin({ bloques: { rueda_posta_min: 2 } }).postaMin === 2 && ruedaMin({ bloques: {} }).rotacionMin === 1);
+const total = (ent) => construirSesion({ entrenamiento: ent, plantilla: pl, tareas: [], tipo: 2 }).total;
+t('sesión: el total sube y baja con la rueda', total({ bloques: { rueda_posta_min: 2 } }) === total({ bloques: {} }) - 4);
 console.log('programa:', ok, 'ok', mal, 'mal');

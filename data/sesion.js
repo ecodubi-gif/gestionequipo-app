@@ -1,8 +1,8 @@
 // La sesión completa: el orden de los bloques, cuánto dura cada cosa, a qué hora empieza,
 // y la hoja imprimible.
 import { materialDeItems, textoMaterial } from './material';
-import { programaDe } from './programaSesion';
-import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, postasDe, posturasEstiramiento, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
+import { programaDe, tiemposRueda, minutosRueda } from './programaSesion';
+import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, posturasEstiramiento, GRUPOS_PRIMER_ENTRENO, bloqueConGrupos, repartirTareasPorGrupo, textoSeries } from './planSesion';
 import { OBJETIVOS, REFERENCIAS, ROLES, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from './tareas';
 import { formatearFechaCorta } from './fecha';
 import { dibujoDeTarea } from './pizarra';
@@ -64,13 +64,16 @@ export function construirSesion({ entrenamiento, plantilla, tareas, tipo }) {
       sumaTareas = Math.max(...grupos.map((g) => g.minutos)) + suma(rep.otras);
       deEsteBloque.splice(0, deEsteBloque.length, ...rep.otras);
     }
-    // La rueda físico-técnica tiene su tiempo fijo; parte central y cierre duran lo que sumen sus tareas.
-    const minutos = b.duracion ? b.duracion : sumaTareas;
+    // La rueda físico-técnica dura lo que den sus postas (n × tiempo de posta + rotaciones entre ellas); parte central y cierre, lo que sumen sus tareas.
+    const esRueda = b.clave === 'rueda_perfiles';
+    const tiempos = esRueda ? tiemposRueda(entrenamiento) : null;
+    const duracion = esRueda ? minutosRueda(programa.rueda.length, tiempos.posta, tiempos.rotacion) : b.duracion;
+    const minutos = duracion ? duracion : sumaTareas;
     anadir({
       clave: b.clave, titulo: b.titulo, responsable: 'Entrenador / segundo', minutos,
       texto: textos[b.clave] || null, tareas: deEsteBloque, grupos,
-      postas: b.clave === 'rueda_perfiles' ? postasDe(plantilla) : null,
-      aviso: b.duracion && sumaTareas > b.duracion ? `Las tareas suman ${sumaTareas}' y este bloque dura ${b.duracion}'.` : null,
+      postas: esRueda ? programa.rueda : null, postaMin: esRueda ? tiempos.posta : null, rotacionMin: esRueda ? tiempos.rotacion : null, propio: esRueda ? programa.propioRueda : undefined,
+      aviso: duracion && sumaTareas > duracion ? `Las tareas suman ${sumaTareas}' y este bloque dura ${duracion}'.` : null,
     });
   }
   // Todos los entrenos acaban con estiramientos (5 minutos), también los ya creados.
@@ -130,7 +133,7 @@ export function htmlSesion({ entrenamiento, tipo, sesion, jugadoresPorId, trabaj
         `<li><b>${esc(m.tiempo)} ${esc(m.zona)}.</b> ${esc(m.descripcion)}</li>`).join('') + '</ul>';
     }
     if (it.postas && it.postas.length) {
-      cuerpo += `<p class="tenue">${esc(it.postas.length)} postas de 3' con rotación de 1'.</p><ol class="lista">` + it.postas.map((x) =>
+      cuerpo += `<p class="tenue">${esc(it.postas.length)} postas de ${esc(it.postaMin)}' con rotación de ${esc(it.rotacionMin)}'.</p><ol class="lista">` + it.postas.map((x) =>
         `<li><b>${esc(x.titulo)}.</b> <u>Físico:</u> ${esc(x.fisico)} <u>Técnico:</u> ${esc(x.tecnico)}</li>`).join('') + '</ol>';
     }
     if (it.sinPrograma) cuerpo += '<p class="tenue">Sin programa de preparación física para este tipo de entreno.</p>';

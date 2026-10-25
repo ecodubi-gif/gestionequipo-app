@@ -2,8 +2,28 @@
 // la cambia en una sesión (otros ejercicios, quitar o poner), lo suyo se guarda en esa sesión (entrenamiento.bloques) y manda
 // sobre la sugerencia. Funciones puras, para poder probarlas.
 
-export const CLAVE_PROG = { preventivo: 'preventivo_prog', movilidad: 'movilidad_prog' };
-export const MAX_ITEMS = { preventivo: 8, movilidad: 10 };
+import { postasDe, MAX_POSTAS } from './planSesion';
+
+export const CLAVE_PROG = { preventivo: 'preventivo_prog', movilidad: 'movilidad_prog', rueda: 'rueda_prog' };
+export const MAX_ITEMS = { preventivo: 8, movilidad: 10, rueda: MAX_POSTAS };
+
+// La rueda físico-técnica: cada posta dura `posta` minutos y entre postas hay `rotacion` minutos. Lo normal es 3' + 1',
+// pero se puede cambiar en cada sesión. Si no hay postas, la rueda dura lo de siempre (15').
+export const RUEDA_DEFECTO = { posta: 3, rotacion: 1, total: 15 };
+export const LIMITES_RUEDA = { postaMin: 1, postaMax: 10, rotMin: 0, rotMax: 5 };
+const entero = (v, min, max, defecto) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && v !== null && v !== '' && v !== undefined ? Math.min(max, Math.max(min, n)) : defecto;
+};
+export function tiemposRueda(entrenamiento) {
+  const b = (entrenamiento && entrenamiento.bloques) || {};
+  return {
+    posta: entero(b.rueda_posta_min, LIMITES_RUEDA.postaMin, LIMITES_RUEDA.postaMax, RUEDA_DEFECTO.posta),
+    rotacion: entero(b.rueda_rot_min, LIMITES_RUEDA.rotMin, LIMITES_RUEDA.rotMax, RUEDA_DEFECTO.rotacion),
+  };
+}
+// Duración total: n postas + (n - 1) rotaciones.
+export const minutosRueda = (nPostas, posta, rotacion) => (nPostas > 0 ? nPostas * posta + (nPostas - 1) * rotacion : RUEDA_DEFECTO.total);
 
 // Campos de cada elemento (clave, etiqueta, obligatorio, multilínea).
 export const CAMPOS_PROG = {
@@ -18,9 +38,14 @@ export const CAMPOS_PROG = {
     { clave: 'zona', etiqueta: 'Zona de trabajo', obligatorio: true },
     { clave: 'descripcion', etiqueta: 'Ejercicio', multilinea: true, obligatorio: true },
   ],
+  rueda: [
+    { clave: 'titulo', etiqueta: 'Nombre de la posta', obligatorio: true },
+    { clave: 'fisico', etiqueta: 'Trabajo físico (material)', multilinea: true, obligatorio: true },
+    { clave: 'tecnico', etiqueta: 'Recurso técnico-táctico (con balón)', multilinea: true },
+  ],
 };
 
-const LARGO = { zona: 160, ejercicio: 1500, series: 40, detalle: 160, tiempo: 20, descripcion: 1500 };
+const LARGO = { zona: 160, ejercicio: 1500, series: 40, detalle: 160, tiempo: 20, descripcion: 1500, titulo: 160, fisico: 1500, tecnico: 1500 };
 
 export const itemVacio = (tipo) => Object.fromEntries(CAMPOS_PROG[tipo].map((c) => [c.clave, '']));
 
@@ -38,11 +63,14 @@ export function programaDe(entrenamiento, plantilla) {
   const b = (entrenamiento && entrenamiento.bloques) || {};
   const propioPrev = Array.isArray(b[CLAVE_PROG.preventivo]);
   const propioMov = Array.isArray(b[CLAVE_PROG.movilidad]);
+  const propioRueda = Array.isArray(b[CLAVE_PROG.rueda]);
   return {
     preventivo: propioPrev ? b[CLAVE_PROG.preventivo] : (plantilla && plantilla.preventivo) || [],
     movilidad: propioMov ? b[CLAVE_PROG.movilidad] : (plantilla && plantilla.movilidad) || [],
+    rueda: propioRueda ? b[CLAVE_PROG.rueda] : postasDe(plantilla),
     propioPrev,
     propioMov,
+    propioRueda,
     hayPlantilla: Boolean(plantilla),
   };
 }

@@ -95,6 +95,10 @@ export default function EntrenoDirectoScreen({ route }) {
     await guardarBloquesEntrenamientoApi(entrenamientoId, { [CLAVE_PROG[tipoProg]]: lista });
     await cargar();
   };
+  const guardarBloques = async (cambios) => {
+    await guardarBloquesEntrenamientoApi(entrenamientoId, cambios);
+    await cargar();
+  };
   const guardarProgPlantilla = async (tipoProg, lista) => {
     if (lista.length === 0) throw new Error('La sugerencia necesita al menos un elemento.');
     await guardarPlantillaEntrenoApi(datos.tipo, { [tipoProg]: lista });
@@ -133,6 +137,7 @@ export default function EntrenoDirectoScreen({ route }) {
         estado={estado}
         cambiar={cambiar}
         guardarProg={guardarProg}
+        guardarBloques={guardarBloques}
         guardarProgPlantilla={guardarProgPlantilla}
         alLista={() => setAbierto(null)}
         irA={(i) => setAbierto(Math.max(0, Math.min(pasos.length - 1, i)))}
@@ -207,7 +212,7 @@ export default function EntrenoDirectoScreen({ route }) {
 }
 
 // Un paso (tarea o bloque) en pantalla grande, con el cronómetro de series y pausas.
-function DetallePaso({ paso, indice, total, datos, estado, cambiar, guardarProg, guardarProgPlantilla, alLista, irA }) {
+function DetallePaso({ paso, indice, total, datos, estado, cambiar, guardarProg, guardarBloques, guardarProgPlantilla, alLista, irA }) {
   const d = datosPaso(estado, paso.id);
   const [fase, setFase] = useState('parado'); // 'parado' | 'trabajo' | 'pausa' | 'detenido'
   const [fin, setFin] = useState(0);
@@ -270,7 +275,8 @@ function DetallePaso({ paso, indice, total, datos, estado, cambiar, guardarProg,
   const roles = ['ataque', 'defensa', 'comodin', 'portero'];
   const nombreJ = (j) => (j ? `${j.dorsal ? `#${j.dorsal} ` : ''}${j.apodo || j.nombre}` : '?');
   const bloque = paso.bloqueDatos;
-  const esPrograma = Boolean(bloque) && (bloque.clave === 'preventivo' || bloque.clave === 'movilidad');
+  const tipoPrograma = bloque ? { preventivo: 'preventivo', movilidad: 'movilidad', rueda_perfiles: 'rueda' }[bloque.clave] : null;
+  const esPrograma = Boolean(tipoPrograma);
   const posturas = bloque && bloque.clave === 'estiramientos' && bloque.texto ? posturasEstiramiento(bloque.texto) : null;
 
   const colorFase = fase === 'trabajo' ? '#16a34a' : fase === 'pausa' ? '#ca8a04' : fase === 'detenido' ? '#6b7280' : '#2563eb';
@@ -348,13 +354,14 @@ function DetallePaso({ paso, indice, total, datos, estado, cambiar, guardarProg,
           <View style={{ marginTop: 8 }}>
             {esPrograma && (
               <ProgramaEditable
-                tipo={bloque.clave} lista={(bloque.clave === 'preventivo' ? bloque.estaciones : bloque.tramos) || []} propio={Boolean(bloque.propio)}
-                puedeEditar={['entrenador', 'segundo_entrenador', 'preparador_fisico'].includes(datos.rol)}
-                puedePlantilla={datos.rol === 'preparador_fisico' && datos.hayPlantilla} numeroEntreno={datos.tipo}
-                onGuardarSesion={(lista) => guardarProg(bloque.clave, lista)} onGuardarPlantilla={(lista) => guardarProgPlantilla(bloque.clave, lista)}
+                tipo={tipoPrograma} lista={(tipoPrograma === 'preventivo' ? bloque.estaciones : tipoPrograma === 'movilidad' ? bloque.tramos : bloque.postas) || []} propio={Boolean(bloque.propio)}
+                puedeEditar={tipoPrograma === 'rueda' ? ['entrenador', 'segundo_entrenador'].includes(datos.rol) : ['entrenador', 'segundo_entrenador', 'preparador_fisico'].includes(datos.rol)}
+                puedePlantilla={tipoPrograma !== 'rueda' && datos.rol === 'preparador_fisico' && datos.hayPlantilla} numeroEntreno={datos.tipo}
+                tiempos={tipoPrograma === 'rueda' ? { posta: bloque.postaMin, rotacion: bloque.rotacionMin } : undefined}
+                onCambiarTiempos={(c) => guardarBloques(c)}
+                onGuardarSesion={(lista) => guardarProg(tipoPrograma, lista)} onGuardarPlantilla={(lista) => guardarProgPlantilla(tipoPrograma, lista)}
               />
             )}
-            {(bloque.postas || []).map((x, i) => <Text key={i} style={styles.rolLinea}><Text style={{ fontWeight: '800' }}>{x.titulo}. </Text>Físico: {x.fisico} Técnico: {x.tecnico}</Text>)}
             {posturas ? posturas.posturas.map((x, i) => <Text key={i} style={styles.rolLinea}>• {x}</Text>) : !!bloque.texto && <Text style={styles.rolLinea}>{bloque.texto}</Text>}
             {posturas && !!posturas.nota && <Text style={styles.nota}>{posturas.nota}</Text>}
             {bloque.sinPrograma && <Text style={styles.nota}>Sin programa para este tipo de entreno.</Text>}
