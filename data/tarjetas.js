@@ -17,7 +17,8 @@ export function acumularTarjetas(partidos, eventosPorPartido, ciclo = CICLO_POR_
     por.set(a.jugador_id, f);
   }
   const rival = (p) => (p.es_local ? p.equipo_visitante : p.equipo_local);
-  const ordenados = partidos.filter((p) => !esPartidoDePrueba(p)).slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+  // Las tarjetas se acumulan cuando el partido se cierra (estado 'finalizado'): un partido en juego o sin cerrar todavía no suma.
+  const ordenados = partidos.filter((p) => !esPartidoDePrueba(p) && p.estado === 'finalizado').slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
   for (const p of ordenados) {
     for (const e of eventosPorPartido[p.id] || []) {
       if ((e.tipo !== 'amarilla' && e.tipo !== 'roja') || e.jugador_id == null) continue;
@@ -49,7 +50,7 @@ const dia = (f) => String(f || '').slice(0, 10);
 // Devuelve { [jugador_id]: { sancionado: bool, motivo: string, apercibido: bool, amarillas } }. La sanción real la fija el Comité: es un aviso.
 export function estadoParaPartido(objetivo, partidos, eventosPorPartido, ajustes = [], ciclo = CICLO_POR_DEFECTO) {
   const previos = partidos
-    .filter((p) => !esPartidoDePrueba(p) && p.id !== objetivo.id && (p.estado === 'finalizado' || p.estado === 'en_curso') && dia(p.fecha) < dia(objetivo.fecha))
+    .filter((p) => !esPartidoDePrueba(p) && p.id !== objetivo.id && p.estado === 'finalizado' && dia(p.fecha) < dia(objetivo.fecha))
     .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
   const ultimo = previos[previos.length - 1];
   const cuenta = new Map();

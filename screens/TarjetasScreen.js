@@ -58,7 +58,7 @@ export default function TarjetasScreen() {
   if (cargando) return <ActivityIndicator style={{ marginTop: 40 }} />;
   return (
     <ScrollView style={styles.contenedor} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-      <Text style={styles.ayuda}>Suma lo que el delegado registra en cada partido ({partidos.length} partidos). Las de los rivales no cuentan.</Text>
+      <Text style={styles.ayuda}>Suma las tarjetas de cada partido cuando se cierra (partidos cerrados: {partidos.filter((p) => p.estado === 'finalizado').length}). Las de los rivales no cuentan.</Text>
       <Text style={styles.etiqueta}>Amarillas que cumplen ciclo (según tu competición)</Text>
       <View style={{ flexDirection: 'row', marginBottom: 10 }}>
         {CICLOS_POSIBLES.map((c) => (
