@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { esPenalti, resumenPenaltis, textoPenaltis, RESULTADOS_PENALTI } from '../data/penaltis';
+let n = 0; const t = (_, f) => { f(); n++; };
+const ev = (equipo, resultado, penalti, tipo = 'tiro') => ({ tipo, equipo, resultado, penalti });
+const E = [ev('local', 'gol', true), ev('local', 'parada', 1), ev('local', 'gol', false), ev('visitante', 'fuera', true), ev('visitante', 'gol', true), ev('visitante', 'gol', undefined), { tipo: 'corner', equipo: 'local', penalti: true }];
+t('esPenalti', () => { assert.ok(esPenalti(E[0])); assert.ok(esPenalti(E[1])); assert.ok(!esPenalti(E[2])); assert.ok(!esPenalti(E[5])); assert.ok(!esPenalti(E[6])); assert.ok(!esPenalti(null)); });
+t('resumen local', () => assert.deepEqual(resumenPenaltis(E, 'local'), { lanzados: 2, marcados: 1, parados: 1, fallados: 0 }));
+t('resumen visitante', () => assert.deepEqual(resumenPenaltis(E, 'visitante'), { lanzados: 2, marcados: 1, parados: 0, fallados: 1 }));
+t('sin penaltis', () => { assert.deepEqual(resumenPenaltis([], 'local'), { lanzados: 0, marcados: 0, parados: 0, fallados: 0 }); assert.equal(textoPenaltis(resumenPenaltis(null, 'local')), '0'); });
+t('texto', () => { assert.equal(textoPenaltis(resumenPenaltis(E, 'local')), '1/2'); assert.equal(textoPenaltis(resumenPenaltis(E, 'visitante')), '1/2'); });
+t('resultados', () => assert.deepEqual(RESULTADOS_PENALTI, ['gol', 'parada', 'fuera']));
+console.log('penaltis:', n, 'pruebas OK');

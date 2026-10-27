@@ -29,6 +29,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { confirmar } from '../data/confirmar';
 import { compartirWhatsApp, generarDocumento } from '../data/compartir';
 import { calcularMinutosJugados, jugadoresEnCampo, jugadoresEnBanquillo } from '../data/minutos';
+import { esPenalti, resumenPenaltis, textoPenaltis, RESULTADOS_PENALTI, ETIQUETA_RESULTADO_PENALTI } from '../data/penaltis';
 
 // Quien registra lo que pasa EN DIRECTO (empezar, goles, tarjetas,
 // cambios, finalizar) es el delegado — el entrenador está dirigiendo
@@ -39,6 +40,8 @@ const claveReloj = (partidoId) => `@reloj_partido_${partidoId}`;
 
 const CONFIG_TIPO = {
   tiro: { etiqueta: 'Tiro', necesitaJugador: false, resultados: ['fuera', 'parada', 'gol'] },
+  // El penalti se guarda como un tiro con la marca penalti (cuenta como tiro y como gol si se marca).
+  penalti: { etiqueta: 'Penalti', necesitaJugador: false, resultados: RESULTADOS_PENALTI },
   corner: { etiqueta: 'Córner', necesitaJugador: false, resultados: ['remate', 'sin_peligro'] },
   amarilla: { etiqueta: 'Tarjeta amarilla', necesitaJugador: true, resultados: null },
   roja: { etiqueta: 'Tarjeta roja', necesitaJugador: true, resultados: null },
@@ -47,6 +50,7 @@ const CONFIG_TIPO = {
 };
 
 const ETIQUETA_RESULTADO = { gol: 'Gol', parada: 'Parada', fuera: 'Fuera', remate: 'Remate', sin_peligro: 'Sin peligro' };
+const etiquetaEvento = (e) => (esPenalti(e) ? 'Penalti' : CONFIG_TIPO[e.tipo]?.etiqueta || e.tipo);
 const ICONO = { tiro: { gol: '⚽', parada: '🧤', fuera: '🎯' }, corner: '🚩', amarilla: '🟨', roja: '🟥', falta: '✋', cambio: '🔁' };
 
 // ---------- Helpers puros (operan sobre lo que ya tenemos en memoria) ----------
@@ -355,7 +359,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
     setDorsalRivalSeleccionado(evento.dorsal_rival ? String(evento.dorsal_rival) : '');
     setMostrarOtroDorsal(false);
     setMinutoEvento(evento.minuto);
-    setModalTipo(evento.tipo);
+    setModalTipo(esPenalti(evento) ? 'penalti' : evento.tipo);
   };
 
   const config = modalTipo ? CONFIG_TIPO[modalTipo] : null;
@@ -403,6 +407,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
           jugador_sale_id: modalTipo === 'cambio' ? jugadorSaleSeleccionado?.id || null : null,
           jugador_entra_id: modalTipo === 'cambio' ? jugadorSeleccionado?.id || null : null,
           dorsal_rival: modalTipo !== 'cambio' && esRival && dorsalRivalSeleccionado ? Number(dorsalRivalSeleccionado) : null,
+          ...(editando.tipo === 'tiro' ? { penalti: modalTipo === 'penalti' } : {}),
         });
         const lista = await listarEventosApi(partidoId);
         setEventos(lista);
@@ -413,7 +418,8 @@ export default function RegistroEventosScreen({ route, navigation }) {
         return;
       }
       const nuevo = await crearEventoApi(partidoId, {
-        tipo: modalTipo,
+        tipo: modalTipo === 'penalti' ? 'tiro' : modalTipo,
+        ...(modalTipo === 'penalti' ? { penalti: true } : {}),
         equipo: equipoSeleccionado,
         minuto: minutoEvento,
         parte: parteActual,
@@ -451,13 +457,13 @@ export default function RegistroEventosScreen({ route, navigation }) {
   const eventosOrdenados = [...eventos].sort((a, b) => b.minuto - a.minuto);
   const nombreEquipo = (equipo) => (equipo === 'local' ? partido.equipo_local : partido.equipo_visitante);
 
-  const iconoDe = (evento) => (evento.tipo === 'tiro' ? ICONO.tiro[evento.resultado] || '🎯' : ICONO[evento.tipo]);
+  const iconoDe = (evento) => (esPenalti(evento) ? { gol: '⚽', parada: '🧤', fuera: '❌' }[evento.resultado] || '🎯' : evento.tipo === 'tiro' ? ICONO.tiro[evento.resultado] || '🎯' : ICONO[evento.tipo]);
 
   const descripcionDe = (evento) => {
     if (evento.tipo === 'tiro' || evento.tipo === 'corner') {
-      return `${CONFIG_TIPO[evento.tipo].etiqueta} · ${nombreEquipo(evento.equipo)} · ${ETIQUETA_RESULTADO[evento.resultado]}`;
+      return `${etiquetaEvento(evento)} · ${nombreEquipo(evento.equipo)} · ${(esPenalti(evento) ? ETIQUETA_RESULTADO_PENALTI : ETIQUETA_RESULTADO)[evento.resultado]}`;
     }
-    return `${CONFIG_TIPO[evento.tipo].etiqueta} · ${nombreEquipo(evento.equipo)}`;
+    return `${etiquetaEvento(evento)} · ${nombreEquipo(evento.equipo)}`;
   };
 
   return (
@@ -517,6 +523,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
           {estadoLocal !== 'pendiente' && (
             <View style={styles.botonera}>
               <BotonEvento emoji="🎯" texto="Tiro" onPress={() => abrirModal('tiro')} />
+              <BotonEvento emoji="🥅" texto="Penalti" onPress={() => abrirModal('penalti')} />
               <BotonEvento emoji="🚩" texto="Córner" onPress={() => abrirModal('corner')} />
               <BotonEvento emoji="✋" texto="Falta" onPress={() => abrirModal('falta')} />
               <BotonEvento emoji="🟨" texto="Amarilla" onPress={() => abrirModal('amarilla')} />
@@ -633,7 +640,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
                 <View style={styles.selectorEquipo}>
                   {config.resultados.map((r) => (
                     <TouchableOpacity key={r} style={[styles.chipEquipo, resultadoSeleccionado === r && styles.chipEquipoActivo]} onPress={() => setResultadoSeleccionado(r)}>
-                      <Text style={[styles.chipTexto, resultadoSeleccionado === r && styles.chipTextoActivo]}>{ETIQUETA_RESULTADO[r]}</Text>
+                      <Text style={[styles.chipTexto, resultadoSeleccionado === r && styles.chipTextoActivo]}>{(modalTipo === 'penalti' ? ETIQUETA_RESULTADO_PENALTI : ETIQUETA_RESULTADO)[r]}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -650,7 +657,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
             ) : esRival ? (
               <>
                 <Text style={styles.etiquetaSeccion}>
-                  Dorsal del rival {!config?.necesitaJugador ? '(opcional)' : ''}
+                  {modalTipo === 'penalti' ? 'Dorsal del lanzador rival' : 'Dorsal del rival'} {!config?.necesitaJugador ? '(opcional)' : ''}
                 </Text>
                 {numerosRivalUsados.length > 0 && (
                   <>
@@ -707,7 +714,7 @@ export default function RegistroEventosScreen({ route, navigation }) {
             ) : (
               <>
                 <Text style={styles.etiquetaSeccion}>
-                  Jugador {!config?.necesitaJugador ? '(opcional)' : ''}
+                  {modalTipo === 'penalti' ? 'Lanzador' : 'Jugador'} {!config?.necesitaJugador ? '(opcional)' : ''}
                 </Text>
                 <SelectorJugadores jugadores={enCampoEquipo} seleccionado={jugadorSeleccionado} onSeleccionar={setJugadorSeleccionado} vacioTexto="Nadie en el campo todavía" />
               </>
@@ -913,6 +920,7 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
     { etiqueta: 'Goles', local: golesLocal, visitante: golesVisitante },
     { etiqueta: 'Tiros', local: contar('tiro', 'local'), visitante: contar('tiro', 'visitante') },
     { etiqueta: 'Tiros a puerta', local: contar('tiro', 'local', aPuerta), visitante: contar('tiro', 'visitante', aPuerta) },
+    { etiqueta: 'Penaltis (marcados/lanzados)', local: textoPenaltis(resumenPenaltis(eventos, 'local')), visitante: textoPenaltis(resumenPenaltis(eventos, 'visitante')) },
     { etiqueta: 'Córners', local: contar('corner', 'local'), visitante: contar('corner', 'visitante') },
     { etiqueta: 'Faltas cometidas', local: contar('falta', 'local'), visitante: contar('falta', 'visitante') },
     { etiqueta: 'Amarillas', local: contar('amarilla', 'local'), visitante: contar('amarilla', 'visitante') },
@@ -926,8 +934,8 @@ function ResumenPartido({ eventos, convocatoria, minutoActual, golesLocal, goles
     const quien = e.tipo === 'cambio'
       ? `Entra ${e.jugador_entra || '—'} / Sale ${e.jugador_sale || '—'}`
       : e.jugador || (e.dorsal_rival ? `Rival #${e.dorsal_rival}` : '');
-    const resultado = e.resultado ? ` (${ETIQUETA_RESULTADO[e.resultado] || e.resultado})` : '';
-    return `${e.minuto}' — ${CONFIG_TIPO[e.tipo]?.etiqueta || e.tipo} · ${nombreEquipo(e.equipo)}${resultado}${quien ? ' · ' + quien : ''}`;
+    const resultado = e.resultado ? ` (${(esPenalti(e) ? ETIQUETA_RESULTADO_PENALTI : ETIQUETA_RESULTADO)[e.resultado] || e.resultado})` : '';
+    return `${e.minuto}' — ${etiquetaEvento(e)} · ${nombreEquipo(e.equipo)}${resultado}${quien ? ' · ' + quien : ''}`;
   };
 
   const generarInforme = async () => {
