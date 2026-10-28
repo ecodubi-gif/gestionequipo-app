@@ -1,4 +1,4 @@
-import { programaDe, limpiarPrograma, reemplazar, quitar, anadir, mover, itemVacio, MAX_ITEMS, programaPropio, tiemposRueda, minutosRueda, perfilDe, limpiarPerfil, perfilVacio, alternarFase, alternarAspecto, textosPerfil, FASES_JUEGO, ASPECTOS_FASE } from './programaSesion.mjs';
+import { programaDe, limpiarPrograma, reemplazar, quitar, anadir, mover, itemVacio, MAX_ITEMS, programaPropio, tiemposRueda, minutosRueda, perfilDe, limpiarPerfil, perfilVacio, alternarFase, alternarAspecto, cambiarOrientacion, textosPerfil, LARGO_ORIENTACION, FASES_JUEGO, ASPECTOS_FASE } from './programaSesion.mjs';
 import { construirSesion } from './sesion.mjs';
 let ok = 0, mal = 0;
 const t = (n, c) => { if (c) ok++; else { mal++; console.log('MAL:', n); } };
@@ -66,4 +66,14 @@ t('perfil: fases inventadas se descartan', limpiarPerfil({ fases: ['ofensiva', '
 t('perfil: textosPerfil solo trae los cuatro textos', JSON.stringify(Object.keys(textosPerfil(pf))) === JSON.stringify(['fase', 'puntal', 'densidad', 'gestion']));
 t('perfil: se guarda y se lee con fases', perfilDe({ bloques: { perfil_dia: pf } }, plPerfil).valores.fases[0] === 'trans_da' && perfilDe({ bloques: { perfil_dia: pf } }, plPerfil).propio);
 t('perfil: vacío solo si no hay textos ni fases', !perfilVacio(perfilDe({ bloques: { perfil_dia: { fases: ['ofensiva'] } } }, null)));
+// --- una orientación por cada fase elegida
+let po = alternarFase(alternarFase(limpiarPerfil({ fase: 'Propuesta' }), 'defensiva'), 'trans_ad');
+po = cambiarOrientacion(po, 'defensiva', 'Bloque medio, ' + 'x'.repeat(10)); po = cambiarOrientacion(po, 'trans_ad', ' Reaccionar en 5 s ');
+t('orientaciones: una por fase elegida', Object.keys(limpiarPerfil(po).orientaciones).length === 2 && limpiarPerfil(po).orientaciones.trans_ad === 'Reaccionar en 5 s');
+t('orientaciones: mientras se escribe no se recortan los espacios', cambiarOrientacion(po, 'defensiva', 'Hola ').orientaciones.defensiva === 'Hola ');
+t('orientaciones: de una fase no elegida no se admiten', cambiarOrientacion(po, 'ofensiva', 'x') === po && limpiarPerfil({ fases: ['ofensiva'], orientaciones: { defensiva: 'no' } }).orientaciones.defensiva === undefined);
+t('orientaciones: se conserva el texto de la plantilla', limpiarPerfil(po).fase === 'Propuesta');
+t('orientaciones: al quitar la fase se quita su orientación', alternarFase(po, 'defensiva').orientaciones.defensiva === undefined && alternarFase(po, 'defensiva').orientaciones.trans_ad !== undefined);
+t('orientaciones: máximo', limpiarPerfil({ fases: ['ofensiva'], orientaciones: { ofensiva: 'x'.repeat(2000) } }).orientaciones.ofensiva.length === LARGO_ORIENTACION);
+t('orientaciones: las vacías no se guardan', limpiarPerfil({ fases: ['ofensiva'], orientaciones: { ofensiva: '   ' } }).orientaciones.ofensiva === undefined);
 console.log('programa:', ok, 'ok', mal, 'mal');

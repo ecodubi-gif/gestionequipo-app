@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Keyboard, ActivityIndicator, Alert } from 'react-native';
 import { confirmar } from '../data/confirmar';
 import { CAMPOS_PERFIL } from '../data/semana';
-import { FASES_JUEGO, ASPECTOS_FASE, limpiarPerfil, textosPerfil, perfilVacio, alternarFase, alternarAspecto } from '../data/programaSesion';
+import { FASES_JUEGO, ASPECTOS_FASE, LARGO_ORIENTACION, limpiarPerfil, textosPerfil, perfilVacio, alternarFase, alternarAspecto, cambiarOrientacion } from '../data/programaSesion';
 
 const nombreFase = (k) => (FASES_JUEGO.find((f) => f.clave === k) || { etiqueta: k }).etiqueta;
 
@@ -39,11 +39,14 @@ export default function PerfilDia({ perfil, numeroEntreno, puedeSesion, puedePla
         {v.fases.length > 0 && (
           <Text style={styles.linea}><Text style={styles.etiqueta}>Fase del juego: </Text>{v.fases.map(nombreFase).join(' · ')}</Text>
         )}
-        {v.fases.map((k) => !!(v.aspectos[k] || []).length && (
-          <Text key={k} style={styles.linea}><Text style={styles.etiqueta}>{nombreFase(k)}: </Text>{v.aspectos[k].join(', ')}</Text>
+        {v.fases.map((k) => (!!(v.aspectos[k] || []).length || !!v.orientaciones[k]) && (
+          <View key={k}>
+            {!!(v.aspectos[k] || []).length && <Text style={styles.linea}><Text style={styles.etiqueta}>{nombreFase(k)}: </Text>{v.aspectos[k].join(', ')}</Text>}
+            {!!v.orientaciones[k] && <Text style={styles.linea}><Text style={styles.etiqueta}>Orientación · {nombreFase(k)}: </Text>{v.orientaciones[k]}</Text>}
+          </View>
         ))}
         {CAMPOS_PERFIL.map((c) => !!v[c.clave] && (
-          <Text key={c.clave} style={styles.linea}><Text style={styles.etiqueta}>{c.clave === 'fase' ? 'Orientaciones de la fase' : c.etiqueta}: </Text>{v[c.clave]}</Text>
+          <Text key={c.clave} style={styles.linea}><Text style={styles.etiqueta}>{c.clave === 'fase' ? (v.fases.length > 0 ? 'Orientaciones propuestas' : 'Orientaciones de la fase') : c.etiqueta}: </Text>{v[c.clave]}</Text>
         ))}
         {puedeEditar && <Text style={styles.pie}>Toca para editar el perfil{puedeSesion ? ' (solo esta sesión)' : ''}</Text>}
       </TouchableOpacity>
@@ -96,7 +99,30 @@ export default function PerfilDia({ perfil, numeroEntreno, puedeSesion, puedePla
                   </>
                 )}
 
-                {CAMPOS_PERFIL.map((c) => (
+                {puedeSesion && edicion.fases.length > 0 && (
+                  <>
+                    {!!(edicion.fase || '').trim() && <Text style={styles.propuesta}>Propuesta del entreno: {edicion.fase}</Text>}
+                    {edicion.fases.map((k) => (
+                      <View key={k}>
+                        <Text style={styles.etiquetaCampo}>Orientación · {nombreFase(k)}</Text>
+                        <TextInput
+                          style={[styles.input, styles.inputMultilinea]}
+                          value={(edicion.orientaciones && edicion.orientaciones[k]) || ''}
+                          onChangeText={(t) => setEdicion((e) => cambiarOrientacion(e, k, t))}
+                          multiline
+                          maxLength={LARGO_ORIENTACION}
+                          placeholder="Qué se pide en esta fase"
+                          placeholderTextColor="#9ca3af"
+                          testID={`orientacion-${k}`}
+                        />
+                        {!!(edicion.fase || '').trim() && !(edicion.orientaciones && edicion.orientaciones[k]) && (
+                          <TouchableOpacity onPress={() => setEdicion((e) => cambiarOrientacion(e, k, e.fase))}><Text style={styles.usarPropuesta}>↳ Usar la propuesta del entreno</Text></TouchableOpacity>
+                        )}
+                      </View>
+                    ))}
+                  </>
+                )}
+                {CAMPOS_PERFIL.filter((c) => !(puedeSesion && edicion.fases.length > 0 && c.clave === 'fase')).map((c) => (
                   <View key={c.clave}>
                     <Text style={styles.etiquetaCampo}>{c.clave === 'fase' ? 'Orientaciones de la fase (propuesta del entreno)' : c.etiqueta}</Text>
                     <TextInput
@@ -151,6 +177,8 @@ const styles = StyleSheet.create({
   chipAspecto: { borderWidth: 1, borderColor: '#d8b4fe', borderRadius: 16, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#fff' },
   chipAspectoActivo: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
   chipAspectoTexto: { fontSize: 12, fontWeight: '600', color: '#4b5563' },
+  propuesta: { fontSize: 12, color: '#6d28d9', backgroundColor: '#f5f3ff', borderRadius: 8, padding: 8, marginTop: 12, lineHeight: 17 },
+  usarPropuesta: { fontSize: 12, fontWeight: '700', color: '#7c3aed', marginTop: 6 },
   input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 10, fontSize: 14, color: '#111827' },
   inputMultilinea: { minHeight: 80, textAlignVertical: 'top' },
   botonPlantilla: { marginTop: 16, borderWidth: 1, borderColor: '#c4b5fd', borderRadius: 10, paddingVertical: 12, alignItems: 'center', backgroundColor: '#f5f3ff' },

@@ -120,6 +120,7 @@ export const ASPECTOS_FASE = {
   trans_da: ['Contraataque', 'Primer pase tras robo', 'Ataque en velocidad', 'Pausa y conservación', 'Ocupar espacios', 'Desmarque de ruptura', 'Apoyos al portador'],
 };
 const MAX_ASPECTOS = 12;
+export const LARGO_ORIENTACION = 600;
 
 const clavesFases = FASES_JUEGO.map((f) => f.clave);
 
@@ -133,7 +134,13 @@ export function limpiarPerfil(valores) {
     const limpios = [...new Set(lista.map((a) => String(a == null ? '' : a).trim().slice(0, 80)).filter(Boolean))].slice(0, MAX_ASPECTOS);
     if (limpios.length > 0) aspectos[k] = limpios;
   }
-  return { ...base, fases, aspectos };
+  // Una orientación por cada fase elegida (con una sola fase, una; con dos, dos…). El texto de la plantilla (fase) se conserva aparte.
+  const orientaciones = {};
+  for (const k of fases) {
+    const t = String(v.orientaciones && v.orientaciones[k] != null ? v.orientaciones[k] : '').trim().slice(0, LARGO_ORIENTACION);
+    if (t) orientaciones[k] = t;
+  }
+  return { ...base, fases, aspectos, orientaciones };
 }
 
 // Solo los cuatro textos (lo que admite la plantilla de la semana).
@@ -154,6 +161,12 @@ export function alternarFase(valores, clave) {
   const v = limpiarPerfil(valores);
   const fases = v.fases.includes(clave) ? v.fases.filter((k) => k !== clave) : [...v.fases, clave];
   return limpiarPerfil({ ...v, fases });
+}
+
+export function cambiarOrientacion(valores, fase, texto) {
+  // Sin limpiar: se escribe letra a letra y no se pueden recortar los espacios por el camino.
+  if (!(valores.fases || []).includes(fase)) return valores;
+  return { ...valores, orientaciones: { ...(valores.orientaciones || {}), [fase]: String(texto == null ? '' : texto).slice(0, LARGO_ORIENTACION) } };
 }
 
 export function alternarAspecto(valores, fase, aspecto) {
