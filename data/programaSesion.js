@@ -3,6 +3,7 @@
 // sobre la sugerencia. Funciones puras, para poder probarlas.
 
 import { postasDe, MAX_POSTAS } from './planSesion';
+import { CAMPOS_PERFIL } from './semana';
 
 export const CLAVE_PROG = { preventivo: 'preventivo_prog', movilidad: 'movilidad_prog', rueda: 'rueda_prog' };
 export const MAX_ITEMS = { preventivo: 8, movilidad: 10, rueda: MAX_POSTAS };
@@ -94,4 +95,71 @@ export function mover(lista, i, dir) {
   const copia = lista.slice();
   [copia[i], copia[j]] = [copia[j], copia[i]];
   return copia;
+}
+
+// ---------- Perfil del día ----------
+// La plantilla del tipo de entreno trae el perfil del día (fase del juego, puntal físico, densidad, gestión de la plantilla)
+// como texto: son las orientaciones propuestas y se conservan siempre. En una sesión concreta se puede cambiar: lo guardado
+// en la sesión (bloques.perfil_dia) manda sobre la plantilla; null vuelve a la plantilla.
+// Además, en la sesión se pueden elegir una o varias fases del juego y, de cada una, sus aspectos.
+export const CLAVE_PERFIL = 'perfil_dia';
+const LARGO_PERFIL = { fase: 160, puntal: 160, densidad: 160, gestion: 1500 };
+
+export const FASES_JUEGO = [
+  { clave: 'defensiva', etiqueta: 'Defensiva' },
+  { clave: 'ofensiva', etiqueta: 'Ofensiva' },
+  { clave: 'trans_ad', etiqueta: 'Transición ataque-defensa' },
+  { clave: 'trans_da', etiqueta: 'Transición defensa-ataque' },
+];
+
+// Aspectos que se pueden elegir de cada fase.
+export const ASPECTOS_FASE = {
+  defensiva: ['Bloque alto', 'Bloque medio', 'Bloque bajo', 'Presión tras pérdida', 'Presión y orientación del rival', 'Basculación y coberturas', 'Marcaje en zona', 'Marcaje al hombre', 'Líneas juntas', 'Defensa del área y de los centros', 'Defensa de la espalda'],
+  ofensiva: ['Salida de balón', 'Progresión por dentro', 'Progresión por fuera', 'Juego entre líneas', 'Amplitud y profundidad', 'Superioridades y apoyos', 'Desmarques y movilidad', 'Cambios de orientación', 'Llegada y finalización', 'Centros y remates', 'Juego directo'],
+  trans_ad: ['Contrapresión', 'Repliegue intensivo', 'Temporización', 'Falta táctica', 'Equilibrios defensivos', 'Cerrar el pase interior'],
+  trans_da: ['Contraataque', 'Primer pase tras robo', 'Ataque en velocidad', 'Pausa y conservación', 'Ocupar espacios', 'Desmarque de ruptura', 'Apoyos al portador'],
+};
+const MAX_ASPECTOS = 12;
+
+const clavesFases = FASES_JUEGO.map((f) => f.clave);
+
+export function limpiarPerfil(valores) {
+  const v = valores || {};
+  const base = Object.fromEntries(CAMPOS_PERFIL.map((c) => [c.clave, String(v[c.clave] == null ? '' : v[c.clave]).trim().slice(0, LARGO_PERFIL[c.clave] || 160)]));
+  const fases = clavesFases.filter((k) => Array.isArray(v.fases) && v.fases.includes(k));
+  const aspectos = {};
+  for (const k of fases) {
+    const lista = v.aspectos && Array.isArray(v.aspectos[k]) ? v.aspectos[k] : [];
+    const limpios = [...new Set(lista.map((a) => String(a == null ? '' : a).trim().slice(0, 80)).filter(Boolean))].slice(0, MAX_ASPECTOS);
+    if (limpios.length > 0) aspectos[k] = limpios;
+  }
+  return { ...base, fases, aspectos };
+}
+
+// Solo los cuatro textos (lo que admite la plantilla de la semana).
+export const textosPerfil = (valores) => Object.fromEntries(CAMPOS_PERFIL.map((c) => [c.clave, limpiarPerfil(valores)[c.clave]]));
+
+export function perfilDe(entrenamiento, plantilla) {
+  const b = (entrenamiento && entrenamiento.bloques) || {};
+  const propio = Boolean(b[CLAVE_PERFIL]) && typeof b[CLAVE_PERFIL] === 'object' && !Array.isArray(b[CLAVE_PERFIL]);
+  const semana = (plantilla && plantilla.semana) || null;
+  const base = propio ? b[CLAVE_PERFIL] : semana;
+  return { valores: limpiarPerfil(base), propio, hayPlantilla: Boolean(semana) };
+}
+
+export const perfilVacio = (perfil) => CAMPOS_PERFIL.every((c) => !perfil.valores[c.clave]) && perfil.valores.fases.length === 0;
+
+// Alterna una fase; al quitarla se quitan también sus aspectos.
+export function alternarFase(valores, clave) {
+  const v = limpiarPerfil(valores);
+  const fases = v.fases.includes(clave) ? v.fases.filter((k) => k !== clave) : [...v.fases, clave];
+  return limpiarPerfil({ ...v, fases });
+}
+
+export function alternarAspecto(valores, fase, aspecto) {
+  const v = limpiarPerfil(valores);
+  if (!v.fases.includes(fase)) return v;
+  const actuales = v.aspectos[fase] || [];
+  const nuevos = actuales.includes(aspecto) ? actuales.filter((a) => a !== aspecto) : [...actuales, aspecto];
+  return limpiarPerfil({ ...v, aspectos: { ...v.aspectos, [fase]: nuevos } });
 }

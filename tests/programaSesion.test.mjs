@@ -1,4 +1,4 @@
-import { programaDe, limpiarPrograma, reemplazar, quitar, anadir, mover, itemVacio, MAX_ITEMS, programaPropio, tiemposRueda, minutosRueda } from './programaSesion.mjs';
+import { programaDe, limpiarPrograma, reemplazar, quitar, anadir, mover, itemVacio, MAX_ITEMS, programaPropio, tiemposRueda, minutosRueda, perfilDe, limpiarPerfil, perfilVacio, alternarFase, alternarAspecto, textosPerfil, FASES_JUEGO, ASPECTOS_FASE } from './programaSesion.mjs';
 import { construirSesion } from './sesion.mjs';
 let ok = 0, mal = 0;
 const t = (n, c) => { if (c) ok++; else { mal++; console.log('MAL:', n); } };
@@ -43,4 +43,27 @@ t('sesión: postas de 4 sin rotación = 16', ruedaMin({ bloques: { rueda_posta_m
 t('sesión: lleva los tiempos', ruedaMin({ bloques: { rueda_posta_min: 2 } }).postaMin === 2 && ruedaMin({ bloques: {} }).rotacionMin === 1);
 const total = (ent) => construirSesion({ entrenamiento: ent, plantilla: pl, tareas: [], tipo: 2 }).total;
 t('sesión: el total sube y baja con la rueda', total({ bloques: { rueda_posta_min: 2 } }) === total({ bloques: {} }) - 4);
+// --- perfil del día
+const plPerfil = { semana: { fase: 'Ataque posicional', puntal: 'Fuerza', densidad: 'Alta', gestion: 'Rotar 3', tareas: [] } };
+t('perfil: sin cambios manda la plantilla', perfilDe({ bloques: {} }, plPerfil).valores.fase === 'Ataque posicional' && !perfilDe({ bloques: {} }, plPerfil).propio);
+t('perfil: el de la sesión manda', perfilDe({ bloques: { perfil_dia: { fase: 'Transición', puntal: '', densidad: 'Media', gestion: '' } } }, plPerfil).valores.fase === 'Transición' && perfilDe({ bloques: { perfil_dia: { fase: 'x' } } }, plPerfil).propio);
+t('perfil: un campo vacío de la sesión no se rellena con la plantilla', perfilDe({ bloques: { perfil_dia: { fase: 'T', puntal: '' } } }, plPerfil).valores.puntal === '');
+t('perfil: null vuelve a la plantilla', !perfilDe({ bloques: { perfil_dia: null } }, plPerfil).propio && perfilDe({ bloques: { perfil_dia: null } }, plPerfil).valores.puntal === 'Fuerza');
+t('perfil: sin plantilla ni cambios está vacío', perfilVacio(perfilDe({ bloques: {} }, null)) && !perfilDe({ bloques: {} }, null).hayPlantilla);
+t('perfil: limpiar recorta y quita lo que sobra', JSON.stringify(limpiarPerfil({ fase: ' A ', otro: 'x', gestion: 'g'.repeat(2000) }).fase) === '"A"' && limpiarPerfil({ gestion: 'g'.repeat(2000) }).gestion.length === 1500 && !('otro' in limpiarPerfil({ otro: 'x' })));
+t('perfil: cuatro fases y aspectos de cada una', FASES_JUEGO.length === 4 && FASES_JUEGO.every((f) => ASPECTOS_FASE[f.clave].length >= 5));
+let pf = limpiarPerfil({ fase: 'Mi texto' });
+t('perfil: sin fases al principio y el texto se conserva', pf.fases.length === 0 && pf.fase === 'Mi texto');
+pf = alternarFase(pf, 'ofensiva'); pf = alternarFase(pf, 'trans_da');
+t('perfil: se eligen varias fases (en el orden de siempre)', JSON.stringify(pf.fases) === JSON.stringify(['ofensiva', 'trans_da']));
+pf = alternarAspecto(pf, 'ofensiva', 'Salida de balón'); pf = alternarAspecto(pf, 'ofensiva', 'Juego directo'); pf = alternarAspecto(pf, 'trans_da', 'Contraataque');
+t('perfil: aspectos de cada fase elegida', pf.aspectos.ofensiva.length === 2 && pf.aspectos.trans_da[0] === 'Contraataque');
+t('perfil: un aspecto se quita al volver a pulsarlo', alternarAspecto(pf, 'ofensiva', 'Juego directo').aspectos.ofensiva.length === 1);
+t('perfil: no se puede elegir aspecto de una fase no elegida', alternarAspecto(pf, 'defensiva', 'Bloque alto').aspectos.defensiva === undefined);
+pf = alternarFase(pf, 'ofensiva');
+t('perfil: al quitar una fase se quitan sus aspectos y se conserva el resto', pf.aspectos.ofensiva === undefined && pf.aspectos.trans_da.length === 1 && pf.fase === 'Mi texto');
+t('perfil: fases inventadas se descartan', limpiarPerfil({ fases: ['ofensiva', 'otra'] }).fases.length === 1);
+t('perfil: textosPerfil solo trae los cuatro textos', JSON.stringify(Object.keys(textosPerfil(pf))) === JSON.stringify(['fase', 'puntal', 'densidad', 'gestion']));
+t('perfil: se guarda y se lee con fases', perfilDe({ bloques: { perfil_dia: pf } }, plPerfil).valores.fases[0] === 'trans_da' && perfilDe({ bloques: { perfil_dia: pf } }, plPerfil).propio);
+t('perfil: vacío solo si no hay textos ni fases', !perfilVacio(perfilDe({ bloques: { perfil_dia: { fases: ['ofensiva'] } } }, null)));
 console.log('programa:', ok, 'ok', mal, 'mal');

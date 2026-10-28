@@ -4,8 +4,8 @@ import { BLOQUES_ENTRENADOR, BLOQUE_FINAL, bloqueDeTarea, posturasEstiramiento, 
 import { confirmar } from '../data/confirmar';
 import BibliotecaTareas from './BibliotecaTareas';
 import ProgramaEditable from './ProgramaEditable';
-import { programaDe, tiemposRueda, minutosRueda, CLAVE_PROG } from '../data/programaSesion';
-import { CAMPOS_PERFIL } from '../data/semana';
+import PerfilDia from './PerfilDia';
+import { programaDe, tiemposRueda, minutosRueda, perfilDe, CLAVE_PROG, CLAVE_PERFIL } from '../data/programaSesion';
 import { OBJETIVOS, formatoTarea, textoDimensiones, segundosDe, formatoDuracion } from '../data/tareas';
 
 const ROLES_ENTRENADOR = ['entrenador', 'segundo_entrenador'];
@@ -72,15 +72,9 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
   const cambiarValor = (campo, texto) => setEdicion((e) => ({ ...e, valores: { ...e.valores, [campo]: texto } }));
 
   const semana = plantilla ? plantilla.semana : null;
-  const abrirPerfil = () => {
-    setEdicion({
-      tipo: 'perfil',
-      titulo: `Perfil del Entreno ${tipo}`,
-      nota: `Se aplica a todos los Entreno ${tipo}.`,
-      campos: CAMPOS_PERFIL,
-      valores: Object.fromEntries(CAMPOS_PERFIL.map((c) => [c.clave, (semana && semana[c.clave]) || ''])),
-    });
-  };
+  const perfil = perfilDe(entrenamiento, plantilla);
+  const guardarPerfilSesion = (valores) => onGuardarBloques({ [CLAVE_PERFIL]: valores });
+  const guardarPerfilPlantilla = (textos) => onGuardarSemana(tipo, { ...(semana || {}), tareas: (semana && semana.tareas) || [], ...textos });
 
   const cargarPlantilla = () => {
     const n = (semana?.tareas || []).length;
@@ -133,11 +127,7 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
     setGuardando(true);
     try {
       const v = Object.fromEntries(Object.entries(edicion.valores).map(([k, x]) => [k, x.trim()]));
-      if (edicion.tipo === 'perfil') {
-        await onGuardarSemana(tipo, { ...(semana || {}), tareas: (semana && semana.tareas) || [], ...v });
-      } else {
-        await onGuardarBloques({ [edicion.clave]: v.contenido || null });
-      }
+      await onGuardarBloques({ [edicion.clave]: v.contenido || null });
       cerrar();
     } catch (err) {
       Alert.alert('No se pudo guardar', err.message);
@@ -252,16 +242,11 @@ export default function PlanSesion({ entrenamiento, tipo, detectado, manual, pla
         </>
       )}
 
-      {semana && (
-        <View style={styles.perfil}>
-          <TouchableOpacity activeOpacity={0.7} disabled={!puedeTipo} onPress={abrirPerfil}>
-            <Text style={styles.perfilTitulo}>Perfil del día · Entreno {tipo}</Text>
-            {CAMPOS_PERFIL.map((c) => !!semana[c.clave] && (
-              <Text key={c.clave} style={styles.perfilLinea}><Text style={styles.perfilEtiqueta}>{c.etiqueta}: </Text>{semana[c.clave]}</Text>
-            ))}
-            {puedeTipo && <Text style={styles.perfilPie}>Toca para editar el perfil</Text>}
-          </TouchableOpacity>
-        </View>
+      {(!!semana || perfil.propio) && (
+        <PerfilDia
+          perfil={perfil} numeroEntreno={tipo} puedeSesion={puedeEntrenador} puedePlantilla={puedeTipo && !!semana}
+          onGuardarSesion={guardarPerfilSesion} onGuardarPlantilla={guardarPerfilPlantilla} onVolver={() => onGuardarBloques({ [CLAVE_PERFIL]: null })}
+        />
       )}
       {puedeEntrenador && tareas !== null && !!semana && (semana.tareas || []).length > 0 && (
         <TouchableOpacity style={styles.accion} onPress={cargarPlantilla}>
@@ -465,11 +450,6 @@ const styles = StyleSheet.create({
   grupoTitulo: { fontSize: 13, fontWeight: '800', color: '#6d28d9' },
   grupoCriterio: { fontSize: 11, color: '#6b7280', marginBottom: 6 },
   grupoNota: { fontSize: 11, color: '#92400e', marginBottom: 6 },
-  perfil: { backgroundColor: '#f5f3ff', borderRadius: 12, borderWidth: 1, borderColor: '#ddd6fe', padding: 14, marginTop: 16 },
-  perfilTitulo: { fontSize: 13, fontWeight: '800', color: '#5b21b6', marginBottom: 6 },
-  perfilLinea: { fontSize: 12, color: '#374151', lineHeight: 18, marginTop: 2 },
-  perfilEtiqueta: { fontWeight: '700', color: '#6d28d9' },
-  perfilPie: { fontSize: 10, color: '#9ca3af', marginTop: 8 },
   accion: { backgroundColor: '#7c3aed', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 12, alignItems: 'center', marginTop: 10 },
   accionTexto: { color: '#fff', fontWeight: '800', fontSize: 12, textAlign: 'center' },
   accionSecundaria: { borderRadius: 10, borderWidth: 1.5, borderColor: '#c4b5fd', paddingVertical: 11, paddingHorizontal: 12, alignItems: 'center', marginTop: 8, backgroundColor: '#fff' },
