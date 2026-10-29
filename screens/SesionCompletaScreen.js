@@ -13,6 +13,7 @@ import {
   obtenerAsistenciasApi,
   obtenerSemanasCargaApi,
 } from '../data/apiClient';
+import { presentesDe, tareasConPresentes } from '../data/disponibles';
 import { tipoDeSesion, textoSeries, lunesDeLaSemana, posturasEstiramiento } from '../data/planSesion';
 import { textoMaterial } from '../data/material';
 import { cargaPrevista, compararCarga, TEXTO_VEREDICTO, formatoPct } from '../data/cargaPlanificada';
@@ -49,7 +50,7 @@ export default function SesionCompletaScreen({ route }) {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [ent, todos, plantillas, tareas, jugadores, asist, campos] = await Promise.all([
+      const [ent, todos, plantillas, tareasTodas, jugadores, asist, campos] = await Promise.all([
         obtenerEntrenamientoApi(entrenamientoId),
         listarEntrenamientosApi(),
         listarPlantillasEntrenoApi().catch(() => null),
@@ -58,6 +59,7 @@ export default function SesionCompletaScreen({ route }) {
         obtenerAsistenciasApi(entrenamientoId),
         listarCamposApi().catch(() => []),
       ]);
+      const tareas = tareasTodas === null ? null : tareasConPresentes(tareasTodas, presentesDe(asist)); // solo los jugadores que han venido
       const { tipo } = tipoDeSesion(ent, todos);
       // RPE real de esta sesión (lo pone el preparador físico). Si no hay permiso o no está puesto, se queda en null.
       const semanasCarga = await obtenerSemanasCargaApi(lunesDeLaSemana(ent.fecha), 1).catch(() => null);

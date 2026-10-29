@@ -1,3 +1,4 @@
+import { presentesDe } from '../data/disponibles';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -68,6 +69,7 @@ export default function TareaEditorScreen({ navigation, route }) {
   const [usuario, setUsuario] = useState(null);
   const [jugadores, setJugadores] = useState([]);
   const [asistentes, setAsistentes] = useState(null); // ids; null = todavía sin lista
+  const [quitados, setQuitados] = useState([]); // jugadores que estaban en la tarea y hoy no están (se quitan solos)
   const [semanas, setSemanas] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -132,7 +134,16 @@ export default function TareaEditorScreen({ navigation, route }) {
       setCampos(cps);
       setUsuario(u);
       setJugadores(jug.filter((j) => j.estado !== 'baja'));
-      setAsistentes(asist.length > 0 ? asist.filter((a) => ['presente', 'retraso'].includes(a.estado)).map((a) => a.jugador.id) : null);
+      const presentes = presentesDe(asist);
+      setAsistentes(presentes);
+      // Quien no ha venido (o está en readaptación) deja de estar asignado: así no se queda seleccionado sin poder verse.
+      const disponibles = new Set(jug.filter((j) => j.estado !== 'baja' && !j.readaptacion && (presentes === null || presentes.includes(j.id))).map((j) => j.id));
+      setAsignaciones((prev) => {
+        const fuera = Object.keys(prev).map(Number).filter((id) => !disponibles.has(id));
+        setQuitados(fuera.map((id) => jug.find((j) => j.id === id)).filter(Boolean));
+        if (fuera.length === 0) return prev;
+        return Object.fromEntries(Object.entries(prev).filter(([id]) => disponibles.has(Number(id))));
+      });
       setSemanas(sem);
     } catch (err) {
       setError(err.message || 'No se pudo cargar');
@@ -169,13 +180,6 @@ export default function TareaEditorScreen({ navigation, route }) {
   const presentes = asistentes === null ? jugadores : jugadores.filter((j) => asistentes.includes(j.id));
   const trabajoAparte = presentes.filter((j) => j.readaptacion);
   const asignables = presentes.filter((j) => !j.readaptacion);
-  // jugadores ya asignados que hoy no están disponibles (faltaron o se lesionaron después): se avisan
-  const noDisponibles = Object.keys(asignaciones)
-    .map(Number)
-    .filter((id) => !asignables.some((j) => j.id === id))
-    .map((id) => jugadores.find((j) => j.id === id))
-    .filter(Boolean);
-
   const riesgoDe = (id) => {
     if (!semanas) return null;
     const r = riesgoJugador(semanas, semanas.length - 1, id);
@@ -431,9 +435,9 @@ export default function TareaEditorScreen({ navigation, route }) {
         })}
         {asignables.length === 0 && <Text style={styles.ayuda}>No hay jugadores disponibles para asignar.</Text>}
 
-        {noDisponibles.length > 0 && (
+        {quitados.length > 0 && (
           <Text style={styles.aviso}>
-            Asignados pero hoy no disponibles (no asistieron o están en readaptación): {noDisponibles.map((j) => nombreJugador(j)).join(', ')}.
+            Se han quitado de la tarea porque hoy no están disponibles (no asistieron o están en readaptación): {quitados.map((j) => nombreJugador(j)).join(', ')}. Guarda la tarea para confirmarlo.
           </Text>
         )}
 

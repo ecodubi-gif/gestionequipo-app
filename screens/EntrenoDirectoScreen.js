@@ -3,9 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  obtenerEntrenamientoApi, listarEntrenamientosApi, listarPlantillasEntrenoApi, listarTareasApi, listarJugadoresApi, listarCamposApi,
+  obtenerEntrenamientoApi, listarEntrenamientosApi, listarPlantillasEntrenoApi, listarTareasApi, listarJugadoresApi, listarCamposApi, obtenerAsistenciasApi,
   obtenerUsuario, guardarBloquesEntrenamientoApi, guardarPlantillaEntrenoApi,
 } from '../data/apiClient';
+import { presentesDe, tareasConPresentes } from '../data/disponibles';
 import { tipoDeSesion, posturasEstiramiento } from '../data/planSesion';
 import { construirSesion } from '../data/sesion';
 import { OBJETIVOS, ROLES, formatoTarea, textoDimensiones } from '../data/tareas';
@@ -56,7 +57,7 @@ export default function EntrenoDirectoScreen({ route }) {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [ent, todos, plantillas, tareas, jugadores, campos, usuario] = await Promise.all([
+      const [ent, todos, plantillas, tareasTodas, jugadores, campos, usuario, asist] = await Promise.all([
         obtenerEntrenamientoApi(entrenamientoId),
         listarEntrenamientosApi(),
         listarPlantillasEntrenoApi().catch(() => null),
@@ -64,7 +65,10 @@ export default function EntrenoDirectoScreen({ route }) {
         listarJugadoresApi().catch(() => []),
         listarCamposApi().catch(() => []),
         obtenerUsuario().catch(() => null),
+        obtenerAsistenciasApi(entrenamientoId).catch(() => []),
       ]);
+      // Solo cuentan los jugadores que han venido hoy (según el pase de lista).
+      const tareas = tareasTodas === null ? null : tareasConPresentes(tareasTodas, presentesDe(asist));
       const { tipo } = tipoDeSesion(ent, todos);
       const sesion = construirSesion({ entrenamiento: ent, plantilla: plantillas ? plantillas.find((p) => p.numero === tipo) : null, tareas: tareas || [], tipo });
       const pasos = pasosDeSesion(sesion);
