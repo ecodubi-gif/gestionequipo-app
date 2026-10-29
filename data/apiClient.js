@@ -450,13 +450,15 @@ export async function eliminarLesionApi(id) {
   await peticion('DELETE', `/lesiones/${id}`);
 }
 
+// persona: { jugador_id } o { miembro } (cuerpo técnico)
+const consultaPersona = (p) => (!p ? '' : p.miembro ? `?miembro=${encodeURIComponent(p.miembro)}` : p.jugador_id ? `?jugador_id=${p.jugador_id}` : '');
 // --- Saldo de multas (delegado, entrenador y segundo; pagan delegado y entrenador) ---
 export async function obtenerSaldosMultasApi() {
   const { data } = await peticion('GET', '/multas/saldos');
   return data;
 }
-export async function listarPagosMultasApi(jugadorId) {
-  const { data } = await peticion('GET', `/multas/pagos${jugadorId ? `?jugador_id=${jugadorId}` : ''}`);
+export async function listarPagosMultasApi(persona) {
+  const { data } = await peticion('GET', `/multas/pagos${consultaPersona(persona)}`);
   return data;
 }
 export async function registrarPagoMultaApi(datos) {
@@ -465,6 +467,19 @@ export async function registrarPagoMultaApi(datos) {
 }
 export async function eliminarPagoMultaApi(id) {
   await peticion('DELETE', `/multas/pagos/${id}`);
+}
+
+// Multas por concepto (las ponen delegado, entrenador y segundo entrenador; las tarjetas entran solas al cerrar el partido): { id, jugador_id, miembro, importe, concepto, tipo, fecha, automatica }
+export async function listarMultasManualesApi(persona) {
+  const { data } = await peticion('GET', `/multas/manuales${consultaPersona(persona)}`);
+  return data;
+}
+export async function crearMultaManualApi(datos) {
+  const { data } = await peticion('POST', '/multas/manuales', datos);
+  return data;
+}
+export async function eliminarMultaManualApi(id) {
+  await peticion('DELETE', `/multas/manuales/${id}`);
 }
 
 // --- Enlaces personales de los jugadores ---

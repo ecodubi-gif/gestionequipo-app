@@ -1,3 +1,4 @@
+import { TARIFAS } from './multas';
 // Enlace personal del jugador: confirmar asistencia y bienestar diario.
 
 // El enlace es  https://app.ecodubi.com/?j=CODIGO  (así no hace falta configurar rutas en el servidor web).
@@ -48,7 +49,7 @@ export const MINUTOS_RETRASO = [15, 30, 45];
 // Un aviso de retraso pesa más que el "voy": llega, pero tarde. La multa la corrige el delegado.
 export function previoDeAviso(aviso) {
   if (!aviso) return null;
-  if (aviso.retraso_minutos > 0 && aviso.respuesta !== 'no_voy') return { estado: 'retraso', multa: 5, motivo: `Avisó: ${aviso.retraso_minutos} min` };
+  if (aviso.retraso_minutos > 0 && aviso.respuesta !== 'no_voy') return { estado: 'retraso', multa: TARIFAS.retraso.importe, motivo: `Avisó: ${aviso.retraso_minutos} min` };
   if (aviso.respuesta === 'no_voy') return { estado: 'falta_justificada', multa: 0, motivo: aviso.motivo || '' };
   if (aviso.respuesta === 'voy') return { estado: 'presente', multa: 0, motivo: '' };
   return null; // duda: se queda como estaba y solo se muestra el aviso

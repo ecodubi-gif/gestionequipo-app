@@ -25,6 +25,7 @@ import {
 } from '../data/apiClient';
 import { compartirWhatsApp, generarDocumento } from '../data/compartir';
 import { formatearFechaCorta } from '../data/fecha';
+import { TARIFAS } from '../data/multas';
 import { previoDeAviso, contarAvisos, textoAviso, textoRecordatorioEntreno } from '../data/jugadorPublico';
 import { MOTIVOS_JUSTIFICADA, MAX_DETALLE, parsearMotivo, componerMotivo } from '../data/motivoAsistencia';
 
@@ -45,9 +46,9 @@ function indicacionDelDia(fechaTexto) {
 
 const PRESETS = {
   presente: { etiqueta: 'Presente', multa: 0, color: '#16a34a' },
-  retraso: { etiqueta: 'Retraso', multa: 5, color: '#ca8a04' },
+  retraso: { etiqueta: 'Retraso', multa: TARIFAS.retraso.importe, color: '#ca8a04' },
   falta_justificada: { etiqueta: 'Justificada', multa: 0, color: '#6b7280' },
-  falta_injustificada: { etiqueta: 'Falta (sin avisar)', multa: 15, color: '#dc2626' },
+  falta_injustificada: { etiqueta: 'Falta (sin avisar)', multa: TARIFAS.falta.importe, color: '#dc2626' },
 };
 
 export default function AsistenciaScreen({ route, navigation }) {

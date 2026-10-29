@@ -35,8 +35,8 @@ t('previo', () => {
 });
 t('contar', () => assert.deepEqual(contarAvisos({ 1: { respuesta: 'voy' }, 2: { respuesta: 'no_voy' }, 3: { respuesta: 'duda' } }, [1, 2, 3, 4, 5]), { voy: 1, no_voy: 1, duda: 1, sin: 2 }));
 t('retraso en el previo', () => {
-  assert.deepEqual(previoDeAviso({ respuesta: null, retraso_minutos: 30 }), { estado: 'retraso', multa: 5, motivo: 'Avisó: 30 min' });
-  assert.deepEqual(previoDeAviso({ respuesta: 'voy', retraso_minutos: 15 }), { estado: 'retraso', multa: 5, motivo: 'Avisó: 15 min' });
+  assert.deepEqual(previoDeAviso({ respuesta: null, retraso_minutos: 30 }), { estado: 'retraso', multa: 1, motivo: 'Avisó: 30 min' });
+  assert.deepEqual(previoDeAviso({ respuesta: 'voy', retraso_minutos: 15 }), { estado: 'retraso', multa: 1, motivo: 'Avisó: 15 min' });
   assert.equal(previoDeAviso({ respuesta: 'no_voy', motivo: 'x', retraso_minutos: 15 }).estado, 'falta_justificada');
 });
 t('texto del aviso', () => {
