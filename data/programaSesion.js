@@ -110,6 +110,7 @@ export const FASES_JUEGO = [
   { clave: 'ofensiva', etiqueta: 'Ofensiva' },
   { clave: 'trans_ad', etiqueta: 'Transición ataque-defensa' },
   { clave: 'trans_da', etiqueta: 'Transición defensa-ataque' },
+  { clave: 'abp', etiqueta: 'ABP · Balón parado' },
 ];
 
 // Aspectos que se pueden elegir de cada fase.
@@ -117,6 +118,7 @@ export const ASPECTOS_FASE = {
   defensiva: ['Bloque alto', 'Bloque medio', 'Bloque bajo', 'Presión tras pérdida', 'Presión y orientación del rival', 'Basculación y coberturas', 'Marcaje en zona', 'Marcaje al hombre', 'Líneas juntas', 'Defensa del área y de los centros', 'Defensa de la espalda'],
   ofensiva: ['Salida de balón', 'Progresión por dentro', 'Progresión por fuera', 'Juego entre líneas', 'Amplitud y profundidad', 'Superioridades y apoyos', 'Desmarques y movilidad', 'Cambios de orientación', 'Llegada y finalización', 'Centros y remates', 'Juego directo'],
   trans_ad: ['Contrapresión', 'Repliegue intensivo', 'Temporización', 'Falta táctica', 'Equilibrios defensivos', 'Cerrar el pase interior'],
+  abp: ['Córner ofensivo', 'Córner defensivo', 'Falta lateral ofensiva', 'Falta lateral defensiva', 'Falta frontal ofensiva', 'Falta frontal defensiva', 'Penalti a favor', 'Penalti en contra', 'Saque de banda ofensivo', 'Saque de banda defensivo', 'Saque de puerta', 'Rechaces y segundas jugadas'],
   trans_da: ['Contraataque', 'Primer pase tras robo', 'Ataque en velocidad', 'Pausa y conservación', 'Ocupar espacios', 'Desmarque de ruptura', 'Apoyos al portador'],
 };
 const MAX_ASPECTOS = 12;

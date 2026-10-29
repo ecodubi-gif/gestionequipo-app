@@ -51,7 +51,7 @@ t('perfil: un campo vacío de la sesión no se rellena con la plantilla', perfil
 t('perfil: null vuelve a la plantilla', !perfilDe({ bloques: { perfil_dia: null } }, plPerfil).propio && perfilDe({ bloques: { perfil_dia: null } }, plPerfil).valores.puntal === 'Fuerza');
 t('perfil: sin plantilla ni cambios está vacío', perfilVacio(perfilDe({ bloques: {} }, null)) && !perfilDe({ bloques: {} }, null).hayPlantilla);
 t('perfil: limpiar recorta y quita lo que sobra', JSON.stringify(limpiarPerfil({ fase: ' A ', otro: 'x', gestion: 'g'.repeat(2000) }).fase) === '"A"' && limpiarPerfil({ gestion: 'g'.repeat(2000) }).gestion.length === 1500 && !('otro' in limpiarPerfil({ otro: 'x' })));
-t('perfil: cuatro fases y aspectos de cada una', FASES_JUEGO.length === 4 && FASES_JUEGO.every((f) => ASPECTOS_FASE[f.clave].length >= 5));
+t('perfil: cinco fases (con ABP) y aspectos de cada una', FASES_JUEGO.length === 5 && FASES_JUEGO.every((f) => ASPECTOS_FASE[f.clave].length >= 5));
 let pf = limpiarPerfil({ fase: 'Mi texto' });
 t('perfil: sin fases al principio y el texto se conserva', pf.fases.length === 0 && pf.fase === 'Mi texto');
 pf = alternarFase(pf, 'ofensiva'); pf = alternarFase(pf, 'trans_da');
@@ -76,4 +76,6 @@ t('orientaciones: se conserva el texto de la plantilla', limpiarPerfil(po).fase 
 t('orientaciones: al quitar la fase se quita su orientación', alternarFase(po, 'defensiva').orientaciones.defensiva === undefined && alternarFase(po, 'defensiva').orientaciones.trans_ad !== undefined);
 t('orientaciones: máximo', limpiarPerfil({ fases: ['ofensiva'], orientaciones: { ofensiva: 'x'.repeat(2000) } }).orientaciones.ofensiva.length === LARGO_ORIENTACION);
 t('orientaciones: las vacías no se guardan', limpiarPerfil({ fases: ['ofensiva'], orientaciones: { ofensiva: '   ' } }).orientaciones.ofensiva === undefined);
+t('perfil: ABP con corner, falta, penalti y saque de banda, a favor y en contra', (() => { const a = ASPECTOS_FASE.abp.join('|'); return FASES_JUEGO.some((f) => f.clave === 'abp') && /Córner ofensivo/.test(a) && /Córner defensivo/.test(a) && /Falta lateral ofensiva/.test(a) && /Falta frontal defensiva/.test(a) && /Penalti a favor/.test(a) && /Penalti en contra/.test(a) && /Saque de banda ofensivo/.test(a) && /Saque de banda defensivo/.test(a) && ASPECTOS_FASE.abp.length <= 12; })());
+t('perfil: se elige ABP junto a otras fases con su orientación', (() => { let v = alternarFase(alternarFase({}, 'ofensiva'), 'abp'); v = alternarAspecto(v, 'abp', 'Penalti en contra'); v = cambiarOrientacion(v, 'abp', 'Portero lee al lanzador'); const l = limpiarPerfil(v); return JSON.stringify(l.fases) === JSON.stringify(['ofensiva', 'abp']) && l.aspectos.abp[0] === 'Penalti en contra' && l.orientaciones.abp === 'Portero lee al lanzador'; })());
 console.log('programa:', ok, 'ok', mal, 'mal');
