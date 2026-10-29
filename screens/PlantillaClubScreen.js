@@ -83,7 +83,7 @@ export default function PlantillaClubScreen({ navigation }) {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [u, lista, nd] = await Promise.all([obtenerUsuario(), listarJugadoresApi(), obtenerNoDisponiblesApi().catch(() => [])]);
+      const [u, lista, nd] = await Promise.all([obtenerUsuario(), listarJugadoresApi({ conJuveniles: true }), obtenerNoDisponiblesApi().catch(() => [])]);
       setUsuario(u);
       setNoDisponibles(nd);
       setPlantilla(lista);
@@ -128,7 +128,7 @@ export default function PlantillaClubScreen({ navigation }) {
       Alert.alert('Faltan datos', 'Nombre y apellidos son obligatorios');
       return;
     }
-    if (!POSICIONES.includes(form.posicion)) {
+    if (form.estado !== 'juvenil' && !POSICIONES.includes(form.posicion)) {
       Alert.alert('Falta la posición', 'Elige la posición principal de la lista.');
       return;
     }
@@ -138,7 +138,7 @@ export default function PlantillaClubScreen({ navigation }) {
       nombre: form.nombre.trim(),
       apellidos: form.apellidos.trim(),
       apodo: form.apodo.trim() || null,
-      posicion: form.posicion,
+      posicion: form.posicion || null,
       posicion_secundaria: form.posicion_secundaria || null,
       pierna: form.pierna || null,
       estado: form.estado || null,
@@ -183,7 +183,7 @@ export default function PlantillaClubScreen({ navigation }) {
   const archivados = plantilla.filter((j) => j.estado === 'baja');
   const visibles = (verArchivados ? plantilla : plantilla.filter((j) => j.estado !== 'baja'))
     .slice()
-    .sort((a, b) => (a.dorsal ?? 999) - (b.dorsal ?? 999) || String(a.apellidos).localeCompare(String(b.apellidos)));
+    .sort((a, b) => (a.estado === 'juvenil') - (b.estado === 'juvenil') || (a.dorsal ?? 999) - (b.dorsal ?? 999) || String(a.apellidos).localeCompare(String(b.apellidos)));
 
   if (cargando) {
     return (
@@ -324,7 +324,7 @@ export default function PlantillaClubScreen({ navigation }) {
 
             <Text style={styles.etiqueta}>Estado</Text>
             <View style={styles.filaChips}>
-              {['activo', 'lesionado', 'sancionado', 'baja'].map((e) => (
+              {['activo', 'lesionado', 'sancionado', 'juvenil', 'baja'].map((e) => (
                 <TouchableOpacity
                   key={e}
                   style={[styles.chip, form.estado === e && styles.chipActivo]}

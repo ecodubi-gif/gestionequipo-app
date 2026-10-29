@@ -12,7 +12,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { estadoParaPartido, CICLO_POR_DEFECTO, CICLOS_POSIBLES } from '../data/tarjetas';
-import { listarJugadoresApi, obtenerConvocatoriaApi, guardarConvocatoriaApi, estadoPublicacionApi, obtenerNoDisponiblesApi, cargarDatosTarjetasApi, publicarConvocatoriaApi, retirarConvocatoriaApi, obtenerPartidoApi, obtenerUsuario } from '../data/apiClient';
+import { listarJugadoresApi, subirJuvenilApi, obtenerConvocatoriaApi, guardarConvocatoriaApi, estadoPublicacionApi, obtenerNoDisponiblesApi, cargarDatosTarjetasApi, publicarConvocatoriaApi, retirarConvocatoriaApi, obtenerPartidoApi, obtenerUsuario } from '../data/apiClient';
 import { compartirWhatsApp } from '../data/compartir';
 import { textoGrupoConvocatoria } from '../data/jugadorPublico';
 import { diferenciasConvocatoria, resumenCambios, titularesDe, suplentesDe } from '../data/convocatoria';
@@ -34,13 +34,14 @@ export default function PlantillaScreen({ route, navigation }) {
   const [publicacion, setPublicacion] = useState(null); // { publicada, vistos, convocados } o null si no se puede gestionar
   const [partido, setPartido] = useState(null);
   const [noDisponibles, setNoDisponibles] = useState([]);
+  const [verJuveniles, setVerJuveniles] = useState(false);
   const [tarjetas, setTarjetas] = useState({}); // { [jugadorId]: { sancionado, motivo, apercibido } } para este partido
 
   const cargar = useCallback(async () => {
     setError('');
     try {
       const [jugadores, convocatoria] = await Promise.all([
-        listarJugadoresApi(),
+        listarJugadoresApi({ conJuveniles: true }),
         obtenerConvocatoriaApi(partidoId),
       ]);
       setPlantilla(jugadores);
@@ -113,8 +114,11 @@ export default function PlantillaScreen({ route, navigation }) {
 
   // Sin dar de baja del club (los 'baja' no salen), salvo que ya estén en la convocatoria guardada. Por dorsal.
   const plantillaVisible = plantilla
-    .filter((j) => j.estado !== 'baja' || original[j.id])
+    .filter((j) => (j.estado !== 'baja' && j.estado !== 'juvenil') || original[j.id])
     .sort((a, b) => (a.dorsal ?? 999) - (b.dorsal ?? 999));
+  // Juveniles que se pueden subir (si ya están en la convocatoria guardada salen con el resto)
+  const juveniles = plantilla.filter((j) => j.estado === 'juvenil' && !original[j.id]).sort((a, b) => String(a.apellidos).localeCompare(String(b.apellidos)));
+  const juvenilesElegidos = juveniles.filter((j) => (seleccion[j.id] || 'no') !== 'no').length;
 
   const continuar = async () => {
     const jugadoresConvocados = Object.entries(seleccion)
@@ -127,6 +131,11 @@ export default function PlantillaScreen({ route, navigation }) {
 
     setGuardando(true);
     try {
+      // Un juvenil convocado pasa a la plantilla del primer equipo (así sale en alineación, eventos y listas).
+      for (const c of jugadoresConvocados) {
+        const j = plantilla.find((x) => x.id === c.jugador_id);
+        if (j && j.estado === 'juvenil') await subirJuvenilApi(j.id);
+      }
       await guardarConvocatoriaApi(partidoId, jugadoresConvocados);
       if (yaGuardada && cambios.hayCambios) {
         Alert.alert(
@@ -142,42 +151,7 @@ export default function PlantillaScreen({ route, navigation }) {
     }
   };
 
-  if (cargando) {
-    return (
-      <View style={styles.centrado}>
-        <ActivityIndicator size="large" color="#16a34a" />
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView style={styles.contenedor} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-      <Text style={styles.titulo}>{yaGuardada ? 'Cambiar la convocatoria' : 'Convocatoria'}</Text>
-      <Text style={styles.subtitulo}>
-        Toca un jugador para pasar de "no convocado" → "suplente" → "titular".
-        Marca con 👑 quién es el capitán (solo entre los titulares).
-      </Text>
-
-      <View style={styles.resumenFila}>
-        <Text style={styles.resumenTexto}>Titulares {titularesSeleccionados}/11</Text>
-        <Text style={styles.resumenTexto}>Suplentes {suplentesSeleccionados}</Text>
-        <Text style={styles.resumenTexto}>Convocados {titularesSeleccionados + suplentesSeleccionados}</Text>
-      </View>
-
-      {yaGuardada && cambios.hayCambios && (
-        <View style={styles.cajaCambios}>
-          <Text style={styles.cajaCambiosTitulo}>Cambios respecto a la convocatoria guardada</Text>
-          {lineasCambios.map((l, i) => (
-            <Text key={i} style={styles.cajaCambiosLinea}>• {l}</Text>
-          ))}
-          <Text style={styles.cajaCambiosPie}>Al guardar, acuérdate de volver a enviarla a jugadores y árbitro.</Text>
-        </View>
-      )}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.lista}>
-        {plantillaVisible.map((j) => {
+  const renderFila = (j) => {
           const estado = seleccion[j.id] || 'no';
           const esCapitan = capitanId === j.id;
           return (
@@ -225,7 +199,54 @@ export default function PlantillaScreen({ route, navigation }) {
               )}
             </View>
           );
-        })}
+  };
+
+  if (cargando) {
+    return (
+      <View style={styles.centrado}>
+        <ActivityIndicator size="large" color="#16a34a" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.contenedor} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+      <Text style={styles.titulo}>{yaGuardada ? 'Cambiar la convocatoria' : 'Convocatoria'}</Text>
+      <Text style={styles.subtitulo}>
+        Toca un jugador para pasar de "no convocado" → "suplente" → "titular".
+        Marca con 👑 quién es el capitán (solo entre los titulares).
+      </Text>
+
+      <View style={styles.resumenFila}>
+        <Text style={styles.resumenTexto}>Titulares {titularesSeleccionados}/11</Text>
+        <Text style={styles.resumenTexto}>Suplentes {suplentesSeleccionados}</Text>
+        <Text style={styles.resumenTexto}>Convocados {titularesSeleccionados + suplentesSeleccionados}</Text>
+      </View>
+
+      {yaGuardada && cambios.hayCambios && (
+        <View style={styles.cajaCambios}>
+          <Text style={styles.cajaCambiosTitulo}>Cambios respecto a la convocatoria guardada</Text>
+          {lineasCambios.map((l, i) => (
+            <Text key={i} style={styles.cajaCambiosLinea}>• {l}</Text>
+          ))}
+          <Text style={styles.cajaCambiosPie}>Al guardar, acuérdate de volver a enviarla a jugadores y árbitro.</Text>
+        </View>
+      )}
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <View style={styles.lista}>
+        {plantillaVisible.map(renderFila)}
+
+        {juveniles.length > 0 && (
+          <View style={styles.cajaJuveniles}>
+            <TouchableOpacity onPress={() => setVerJuveniles((v) => !v)} testID="juveniles-toggle">
+              <Text style={styles.cajaJuvenilesTitulo}>🌱 Juveniles ({juveniles.length}) {verJuveniles || juvenilesElegidos > 0 ? '▾' : '▸'}</Text>
+              <Text style={styles.cajaJuvenilesTexto}>Por si hay que subir alguno{juvenilesElegidos > 0 ? ` · ${juvenilesElegidos} elegido${juvenilesElegidos > 1 ? 's' : ''}` : ''}. Al convocarlo pasa a la plantilla del primer equipo.</Text>
+            </TouchableOpacity>
+            {(verJuveniles || juvenilesElegidos > 0) && juveniles.map(renderFila)}
+          </View>
+        )}
         {plantilla.length === 0 && (
           <Text style={styles.vacio}>
             Todavía no hay jugadores en la plantilla del club. Pídele al delegado que los dé de alta desde "Plantilla" en el Panel.
@@ -270,6 +291,9 @@ export default function PlantillaScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  cajaJuveniles: { backgroundColor: '#f0fdf4', borderRadius: 12, padding: 12, marginTop: 6, borderWidth: 1, borderColor: '#bbf7d0' },
+  cajaJuvenilesTitulo: { fontSize: 15, fontWeight: '800', color: '#166534' },
+  cajaJuvenilesTexto: { fontSize: 12, color: '#4b5563', marginTop: 2, marginBottom: 8 },
   cajaPublicar: { backgroundColor: '#f0fdf4', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#bbf7d0' },
   cajaPublicarTitulo: { fontWeight: '800', color: '#166534', marginBottom: 4 },
   cajaPublicarTexto: { fontSize: 13, color: '#374151', marginBottom: 8, lineHeight: 18 },

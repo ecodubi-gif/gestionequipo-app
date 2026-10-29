@@ -169,8 +169,15 @@ export async function actualizarPartidoApi(id, datos) {
 
 // ---------- Jugadores (plantilla del club) ----------
 
-export async function listarJugadoresApi() {
+// Los juveniles (estado 'juvenil') no son del primer equipo: solo salen si se piden (convocatoria y plantilla).
+export async function listarJugadoresApi({ conJuveniles = false } = {}) {
   const { data } = await peticion('GET', '/jugadores');
+  return conJuveniles ? data : data.filter((j) => j.estado !== 'juvenil');
+}
+
+// Pasa un juvenil a la plantilla del primer equipo (estado activo). Delegado, entrenador y segundo entrenador.
+export async function subirJuvenilApi(id) {
+  const { data } = await peticion('POST', `/jugadores/${id}/subir`);
   return data;
 }
 
