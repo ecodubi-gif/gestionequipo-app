@@ -30,6 +30,7 @@ export default function TarjetasScreen() {
       try { const c = Number(await AsyncStorage.getItem(CLAVE_CICLO)); if (CICLOS_POSIBLES.includes(c)) setCiclo(c); } catch (e) { /* sin almacenamiento */ }
       const [datos, js, u] = await Promise.all([cargarDatosTarjetasApi(), listarJugadoresApi(), obtenerUsuario()]);
       setPartidos(datos.partidos.filter((p) => !esPartidoDePrueba(p))); setJugadores(js); setEventos(datos.eventos); setAjustes(datos.ajustes);
+      if (datos.fallos) setError(`No se han podido leer las tarjetas de ${datos.fallos} partido${datos.fallos > 1 ? 's' : ''}: lo que ves está incompleto. Recarga la pantalla.`);
       setPuedeEditar(['delegado', 'entrenador', 'segundo_entrenador'].includes(u?.role));
     } catch (e) { setError(e.message || 'No se pudieron cargar las tarjetas'); } finally { setCargando(false); }
   }, []);
@@ -58,7 +59,7 @@ export default function TarjetasScreen() {
   if (cargando) return <ActivityIndicator style={{ marginTop: 40 }} />;
   return (
     <ScrollView style={styles.contenedor} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-      <Text style={styles.ayuda}>Suma las tarjetas de cada partido cuando se cierra (partidos cerrados: {partidos.filter((p) => p.estado === 'finalizado').length}). Las de los rivales no cuentan.</Text>
+      <Text style={styles.ayuda}>Suma las tarjetas de cada partido cuando se cierra (partidos cerrados: {partidos.filter((p) => p.estado === 'finalizado').length}, tarjetas de nuestros jugadores leídas: {partidos.filter((p) => p.estado === 'finalizado').reduce((n, p) => n + (eventos[p.id] || []).filter((e) => (e.tipo === 'amarilla' || e.tipo === 'roja') && e.jugador_id != null).length, 0)}). Las de los rivales no cuentan.</Text>
       <Text style={styles.etiqueta}>Amarillas que cumplen ciclo (según tu competición)</Text>
       <View style={{ flexDirection: 'row', marginBottom: 10 }}>
         {CICLOS_POSIBLES.map((c) => (

@@ -598,6 +598,14 @@ export const borrarAjusteTarjetaApi = (id) => peticion('DELETE', `/tarjetas/ajus
 export async function cargarDatosTarjetasApi() {
   const [ps, ajustes] = await Promise.all([listarPartidosApi(), listarAjustesTarjetasApi().catch(() => [])]);
   const jugados = ps.filter((p) => p.estado === 'en_curso' || p.estado === 'finalizado');
-  const lista = await Promise.all(jugados.map((p) => listarEventosApi(p.id).catch(() => [])));
-  return { todos: ps, partidos: jugados, eventos: Object.fromEntries(jugados.map((p, i) => [p.id, lista[i]])), ajustes };
+  // Un partido cuyos eventos no se pueden leer se reintenta una vez; si sigue fallando se cuenta en `fallos` (antes se ignoraba en silencio y las tarjetas salían a medias).
+  let fallos = 0;
+  const lista = await Promise.all(jugados.map(async (p) => {
+    for (let intento = 0; intento < 2; intento++) {
+      try { return await listarEventosApi(p.id); } catch (e) { /* se reintenta */ }
+    }
+    fallos++;
+    return [];
+  }));
+  return { todos: ps, partidos: jugados, eventos: Object.fromEntries(jugados.map((p, i) => [p.id, lista[i]])), ajustes, fallos };
 }
