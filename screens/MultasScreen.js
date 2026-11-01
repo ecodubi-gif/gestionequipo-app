@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { confirmar } from '../data/confirmar';
-import { listarJugadoresApi, obtenerSaldosMultasApi, listarPagosMultasApi, registrarPagoMultaApi, eliminarPagoMultaApi, listarMultasManualesApi, crearMultaManualApi, eliminarMultaManualApi, obtenerUsuario } from '../data/apiClient';
+import { listarJugadoresApi, obtenerSaldosMultasApi, listarPagosMultasApi, registrarPagoMultaApi, eliminarPagoMultaApi, listarMultasManualesApi, listarExentosMultasApi, crearMultaManualApi, eliminarMultaManualApi, obtenerUsuario } from '../data/apiClient';
 import { euros, leerImporte, totalPendiente, TARIFAS, CONCEPTOS_MULTA, CUERPO_TECNICO, nombreMiembro, importeMulta, clavePersona, ROLES_MULTAR, validarMulta, multasDeAsistencia } from '../data/multas';
 import { fechaISO } from '../data/tarjetas';
 
@@ -12,6 +12,7 @@ const nombreFila = (s, jugadores) => (s.miembro ? `${nombreMiembro(s.miembro)} (
 export default function MultasScreen() {
   const [saldos, setSaldos] = useState([]);
   const [jugadores, setJugadores] = useState({});
+  const [exentos, setExentos] = useState([]); // juveniles: no pagan multas
   const [puedePagar, setPuedePagar] = useState(false);
   const [puedeMultar, setPuedeMultar] = useState(false);
   const [multas, setMultas] = useState([]); // multas puestas a mano del jugador abierto
@@ -26,7 +27,8 @@ export default function MultasScreen() {
   const cargar = useCallback(async () => {
     setError('');
     try {
-      const [s, j, u] = await Promise.all([obtenerSaldosMultasApi(), listarJugadoresApi(), obtenerUsuario()]);
+      const [s, j, u, ex] = await Promise.all([obtenerSaldosMultasApi(), listarJugadoresApi(), obtenerUsuario(), listarExentosMultasApi().catch(() => [])]);
+      setExentos(ex);
       setSaldos(s);
       setJugadores(Object.fromEntries(j.map((x) => [x.id, x])));
       setPuedePagar(['delegado', 'entrenador'].includes(u?.role));
@@ -73,7 +75,7 @@ export default function MultasScreen() {
   const quitarMulta = (m) => confirmar('Borrar multa', `¿Borrar la multa de ${euros(m.importe)} (${m.concepto})?`, async () => {
     try { await eliminarMultaManualApi(m.id); setMultas(await listarMultasManualesApi(quien(m))); await cargar(); } catch (e) { setError(e.message); }
   }, 'Borrar');
-  const listaJugadores = Object.values(jugadores).sort((a, b) => (Number(a.dorsal) || 999) - (Number(b.dorsal) || 999));
+  const listaJugadores = Object.values(jugadores).filter((j) => j.estado !== 'baja' && !exentos.includes(j.id)).sort((a, b) => (Number(a.dorsal) || 999) - (Number(b.dorsal) || 999));
 
   if (cargando) return <ActivityIndicator style={{ marginTop: 60 }} size="large" color="#16a34a" />;
   const pendiente = totalPendiente(saldos);
@@ -163,7 +165,7 @@ export default function MultasScreen() {
           )}
         </View>
       ))}
-      <Text style={styles.nota}>Las multas se ponen por concepto y el importe sale solo (el cuerpo técnico paga el doble). Las tarjetas amarillas y rojas se apuntan solas al cerrar el partido. Se debe hasta que se paga: el saldo es lo multado menos los pagos. Si hay un error, se borra la multa.</Text>
+      <Text style={styles.nota}>Las multas se ponen por concepto y el importe sale solo (el cuerpo técnico paga el doble). Las tarjetas amarillas y rojas se apuntan solas al cerrar el partido. Se debe hasta que se paga: el saldo es lo multado menos los pagos. Los juveniles no pagan multas. Si hay un error, se borra la multa.</Text>
     </ScrollView>
   );
 }

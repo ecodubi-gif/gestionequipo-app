@@ -476,6 +476,11 @@ export async function eliminarPagoMultaApi(id) {
   await peticion('DELETE', `/multas/pagos/${id}`);
 }
 
+// Ids de jugadores que no pagan multas (juveniles)
+export async function listarExentosMultasApi() {
+  const { data } = await peticion('GET', '/multas/exentos');
+  return data;
+}
 // Multas por concepto (las ponen delegado, entrenador y segundo entrenador; las tarjetas entran solas al cerrar el partido): { id, jugador_id, miembro, importe, concepto, tipo, fecha, automatica }
 export async function listarMultasManualesApi(persona) {
   const { data } = await peticion('GET', `/multas/manuales${consultaPersona(persona)}`);
